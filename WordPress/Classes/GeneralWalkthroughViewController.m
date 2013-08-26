@@ -60,6 +60,7 @@
     
     // Page 3
     UIImageView *_page3Icon;
+    UILabel *_page3Label;
     UITextField *_usernameText;
     UITextField *_passwordText;
     UITextField *_siteUrlText;
@@ -95,14 +96,18 @@
 @implementation GeneralWalkthroughViewController
 
 CGFloat const GeneralWalkthroughIconVerticalOffset = 77;
-CGFloat const GeneralWalkthroughStandardOffset = 16;
+CGFloat const GeneralWalkthroughStandardOffset = 12;
 CGFloat const GeneralWalkthroughBottomBackgroundHeight = 64;
 CGFloat const GeneralWalkthroughMaxTextWidth = 289.0;
 CGFloat const GeneralWalkthroughSwipeToContinueTopOffset = 14.0;
-CGFloat const GeneralWalkthroughTextFieldWidth = 289.0;
-CGFloat const GeneralWalkthroughTextFieldHeight = 40.0;
-CGFloat const GeneralWalkthroughSignInButtonWidth = 160.0;
-CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
+//CGFloat const GeneralWalkthroughTextFieldWidth = 289.0;
+//CGFloat const GeneralWalkthroughTextFieldHeight = 40.0;
+CGFloat const GeneralWalkthroughTextFieldWidth = 242.0;
+CGFloat const GeneralWalkthroughTextFieldHeight = 31.0;
+//CGFloat const GeneralWalkthroughSignInButtonWidth = 160.0;
+//CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
+CGFloat const GeneralWalkthroughSignInButtonWidth = 90.0;
+CGFloat const GeneralWalkthroughSignInButtonHeight = 24.0;
 
 - (void)dealloc
 {
@@ -115,13 +120,14 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
     
     _viewWidth = [self.view formSheetViewWidth];
     _viewHeight = [self.view formSheetViewHeight];
-        
-    self.view.backgroundColor = [WPNUXUtility backgroundColor];
-
+    
+    //self.view.backgroundColor = [WPNUXUtility backgroundColor];
+    self.view.backgroundColor = [UIColor colorWithRed:75.0/255.0 green:72.0/255.0 blue:72.0/255.0 alpha:1];
+    
     [self addBackgroundTexture];
     [self addScrollview];
-    [self initializePage1];
-    [self initializePage2];
+    //[self initializePage1];
+    //[self initializePage2];
     [self initializePage3];
     
     if (!IS_IPAD) {
@@ -252,6 +258,10 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
     return YES;
 }
 
+- (BOOL)textFieldShouldClear:(UITextField *)textfield{
+    return YES;
+}
+
 #pragma mark - Displaying of Error Messages
 
 - (WPWalkthroughOverlayView *)baseLoginErrorOverlayView:(NSString *)message
@@ -356,7 +366,8 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
 - (void)clickedSkipToCreate:(id)sender
 {
     [WPMobileStats trackEventForSelfHostedAndWPCom:StatsEventNUXFirstWalkthroughClickedSkipToCreateAccount];
-    [self showCreateAccountView];
+    // WordPress.comに新規作成する機能は削除
+    //[self showCreateAccountView];
 }
 
 - (void)clickedSkipToSignIn:(id)sender
@@ -372,7 +383,8 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
 - (void)clickedCreateAccount:(UITapGestureRecognizer *)tapGestureRecognizer
 {
     [WPMobileStats trackEventForSelfHostedAndWPCom:StatsEventNUXFirstWalkthroughClickedCreateAccount];
-    [self showCreateAccountView];
+    // WordPress.comに新規作成する機能は削除
+    //[self showCreateAccountView];
 }
 
 - (void)clickedBackground:(UITapGestureRecognizer *)tapGestureRecognizer
@@ -418,7 +430,8 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
 {
     _scrollView = [[UIScrollView alloc] init];
     CGSize scrollViewSize = _scrollView.contentSize;
-    scrollViewSize.width = _viewWidth * 3;
+    //scrollViewSize.width = _viewWidth * 3;
+    scrollViewSize.width = _viewWidth * 1;
     _scrollView.frame = self.view.bounds;
     _scrollView.contentSize = scrollViewSize;
     _scrollView.pagingEnabled = true;
@@ -558,9 +571,12 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
 
     // Add Skip to Create Account Button
     if (_skipToCreateAccount == nil) {
-        _skipToCreateAccount = [[WPNUXSecondaryButton alloc] init];
-        [_skipToCreateAccount setTitle:NSLocalizedString(@"Create Account", nil) forState:UIControlStateNormal];
-        [_skipToCreateAccount addTarget:self action:@selector(clickedSkipToCreate:) forControlEvents:UIControlEventTouchUpInside];
+        // WordPress.comに新規作成する機能は削除
+        // ボタンの機能を削除するが、位置の計算などに使われるため、仮のUIViewを配置しておく。
+        //_skipToCreateAccount = [[WPNUXSecondaryButton alloc] init];
+        _skipToCreateAccount = (WPNUXSecondaryButton*)[[UIView alloc] init];
+        //[_skipToCreateAccount setTitle:NSLocalizedString(@"Create Account", nil) forState:UIControlStateNormal];
+        //[_skipToCreateAccount addTarget:self action:@selector(clickedSkipToCreate:) forControlEvents:UIControlEventTouchUpInside];
         [_skipToCreateAccount sizeToFit];
         [_scrollView addSubview:_skipToCreateAccount];
     }
@@ -786,8 +802,21 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
 {
     // Add Icon
     if (_page3Icon == nil) {
-        _page3Icon = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"icon-wp"]];
+        //_page3Icon = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"icon-wp"]];
+        _page3Icon = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"loginlogo"]];
+        _page3Icon.frame = CGRectMake(0,0,195,105);
         [_scrollView addSubview:_page3Icon];
+    }
+    
+    // Add Label
+    if (_page3Label == nil) {
+        _page3Label = [[UILabel alloc] init];
+        _page3Label.backgroundColor = [UIColor clearColor];
+        _page3Label.textColor = [UIColor whiteColor];
+        _page3Label.font = [UIFont systemFontOfSize:14];
+        _page3Label.text = @"ようこそ、ログインしてはじめよう";
+        _page3Label.textAlignment = UITextAlignmentCenter;
+        [_scrollView addSubview:_page3Label];
     }
     
     // Add Username
@@ -800,6 +829,9 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
         _usernameText.delegate = self;
         _usernameText.autocorrectionType = UITextAutocorrectionTypeNo;
         _usernameText.autocapitalizationType = UITextAutocapitalizationTypeNone;
+        _usernameText.clearButtonMode = UITextFieldViewModeAlways;
+        _usernameText.font = [UIFont systemFontOfSize:14];
+        _usernameText.layer.cornerRadius = 5;
         [_scrollView addSubview:_usernameText];
     }
     
@@ -811,6 +843,9 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
         _passwordText.font = [WPNUXUtility textFieldFont];
         _passwordText.delegate = self;
         _passwordText.secureTextEntry = YES;
+        _passwordText.clearButtonMode = UITextFieldViewModeAlways;
+        _passwordText.font = [UIFont systemFontOfSize:14];
+        _passwordText.layer.cornerRadius = 5;
         [_scrollView addSubview:_passwordText];
     }
     
@@ -826,18 +861,24 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
         _siteUrlText.returnKeyType = UIReturnKeyGo;
         _siteUrlText.autocorrectionType = UITextAutocorrectionTypeNo;
         _siteUrlText.autocapitalizationType = UITextAutocapitalizationTypeNone;
+        _siteUrlText.clearButtonMode = UITextFieldViewModeAlways;
+        _siteUrlText.font = [UIFont systemFontOfSize:15];
+        _siteUrlText.layer.cornerRadius = 5;
         [_scrollView addSubview:_siteUrlText];
     }
     
     // Add Sign In Button
     if (_signInButton == nil) {
+        //_signInButton = [[WPNUXMainButton alloc] init];
         _signInButton = [[WPNUXMainButton alloc] init];
-        [_signInButton setTitle:NSLocalizedString(@"Sign In", nil) forState:UIControlStateNormal];
+        //[_signInButton setTitle:NSLocalizedString(@"Sign In", nil) forState:UIControlStateNormal];
         [_signInButton addTarget:self action:@selector(clickedSignIn:) forControlEvents:UIControlEventTouchUpInside];
         [_scrollView addSubview:_signInButton];
         _signInButton.enabled = NO;
     }
     
+    // WordPress.comに新規作成する機能は削除
+    /*
     // Add Create Account Text
     if (_createAccountLabel == nil) {
         _createAccountLabel = [[UILabel alloc] init];
@@ -856,49 +897,70 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
         [_createAccountLabel addGestureRecognizer:tapGestureRecognizer];
         [_scrollView addSubview:_createAccountLabel];
     }
+    */
 }
 
 - (void)layoutPage3Controls
 {
+    CGFloat baseHeight = [[UIScreen mainScreen] applicationFrame].size.height;
+    if(IS_IPAD){
+        baseHeight = baseHeight/2;
+    }
     CGFloat x,y;
     x = (_viewWidth - CGRectGetWidth(_page3Icon.frame))/2.0;
-    x = [self adjustX:x forPage:3];
-    y = GeneralWalkthroughIconVerticalOffset;
+    //x = [self adjustX:x forPage:3];
+    x = [self adjustX:x forPage:1];
+    //y = GeneralWalkthroughIconVerticalOffset;
+    y = (baseHeight/4) - (CGRectGetHeight(_page3Icon.frame)/2);
     _page3Icon.frame = CGRectIntegral(CGRectMake(x, y, CGRectGetWidth(_page3Icon.frame), CGRectGetHeight(_page3Icon.frame)));
 
+    // Layout Label
+    x = (_viewWidth - GeneralWalkthroughTextFieldWidth)/2.0;
+    x = [self adjustX:x forPage:1];
+    y = (baseHeight/2) - (GeneralWalkthroughTextFieldHeight/2);
+    _page3Label.frame = CGRectIntegral(CGRectMake(x, y, GeneralWalkthroughTextFieldWidth, GeneralWalkthroughTextFieldHeight));
+    
     // Layout Username
     x = (_viewWidth - GeneralWalkthroughTextFieldWidth)/2.0;
-    x = [self adjustX:x forPage:3];
-    y = CGRectGetMaxY(_page3Icon.frame) + GeneralWalkthroughStandardOffset;
+    //x = [self adjustX:x forPage:3];
+    x = [self adjustX:x forPage:1];
+    y = CGRectGetMaxY(_page3Label.frame) + (GeneralWalkthroughStandardOffset/2);
     _usernameText.frame = CGRectIntegral(CGRectMake(x, y, GeneralWalkthroughTextFieldWidth, GeneralWalkthroughTextFieldHeight));
 
     // Layout Password
     x = (_viewWidth - GeneralWalkthroughTextFieldWidth)/2.0;
-    x = [self adjustX:x forPage:3];
-    y = CGRectGetMaxY(_usernameText.frame) + 0.5*GeneralWalkthroughStandardOffset;
+    //x = [self adjustX:x forPage:3];
+    x = [self adjustX:x forPage:1];
+    //y = CGRectGetMaxY(_usernameText.frame) + 0.5*GeneralWalkthroughStandardOffset;
+    y = CGRectGetMaxY(_usernameText.frame) + GeneralWalkthroughStandardOffset;
     _passwordText.frame = CGRectIntegral(CGRectMake(x, y, GeneralWalkthroughTextFieldWidth, GeneralWalkthroughTextFieldHeight));
 
     // Layout Site URL
     x = (_viewWidth - GeneralWalkthroughTextFieldWidth)/2.0;
-    x = [self adjustX:x forPage:3];
-    y = CGRectGetMaxY(_passwordText.frame) + 0.5*GeneralWalkthroughStandardOffset;
+    //x = [self adjustX:x forPage:3];
+    x = [self adjustX:x forPage:1];
+    //y = CGRectGetMaxY(_passwordText.frame) + 0.5*GeneralWalkthroughStandardOffset;
+    y = CGRectGetMaxY(_passwordText.frame) + GeneralWalkthroughStandardOffset;
     _siteUrlText.frame = CGRectIntegral(CGRectMake(x, y, GeneralWalkthroughTextFieldWidth, GeneralWalkthroughTextFieldHeight));
 
     // Layout Sign in Button
     x = (_viewWidth - GeneralWalkthroughSignInButtonWidth) / 2.0;;
-    x = [self adjustX:x forPage:3];
-    y = CGRectGetMaxY(_siteUrlText.frame) + GeneralWalkthroughStandardOffset;
+    //x = [self adjustX:x forPage:3];
+    x = [self adjustX:x forPage:1];
+    //y = CGRectGetMaxY(_siteUrlText.frame) + GeneralWalkthroughStandardOffset;
+    y = (baseHeight/8 *7) - (GeneralWalkthroughSignInButtonHeight/2);
     _signInButton.frame = CGRectMake(x, y, GeneralWalkthroughSignInButtonWidth, GeneralWalkthroughSignInButtonHeight);
 
     // Layout Create Account Label
     CGSize createAccountLabelSize = [_createAccountLabel.text sizeWithFont:_createAccountLabel.font constrainedToSize:CGSizeMake(_viewWidth - 2*GeneralWalkthroughStandardOffset, CGFLOAT_MAX) lineBreakMode:UILineBreakModeWordWrap];
     x = (_viewWidth - createAccountLabelSize.width)/2.0;
-    x = [self adjustX:x forPage:3];
+    //x = [self adjustX:x forPage:3];
+    x = [self adjustX:x forPage:1];
     y = CGRectGetMinY(_bottomPanel.frame) + (CGRectGetHeight(_bottomPanel.frame) - createAccountLabelSize.height)/2.0;
     _createAccountLabel.frame = CGRectIntegral(CGRectMake(x, y, createAccountLabelSize.width, createAccountLabelSize.height));
     
-    NSArray *viewsToCenter = @[_page3Icon, _usernameText, _passwordText, _siteUrlText, _signInButton];
-    [WPNUXUtility centerViews:viewsToCenter withStartingView:_page3Icon andEndingView:_signInButton forHeight:(_viewHeight-_heightFromSwipeToContinue)];
+    //NSArray *viewsToCenter = @[_page3Icon, _usernameText, _passwordText, _siteUrlText, _signInButton];
+    //[WPNUXUtility centerViews:viewsToCenter withStartingView:_page3Icon andEndingView:_signInButton forHeight:(_viewHeight-_heightFromSwipeToContinue)];
 }
 
 - (void)savePositionsOfStickyControls
@@ -1081,31 +1143,36 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
     _dotComSiteUrl = nil;
     
     if ([self hasUserOnlyEnteredValuesForDotCom]) {
-        [WPMobileStats trackEventForSelfHostedAndWPCom:StatsEventNUXFirstWalkthroughSignedInWithoutUrl];
-        [self signInForWPComForUsername:username andPassword:password];
-        return;
+        _siteUrlText.text = [NSString stringWithFormat:@"%@.wordpress.com", _usernameText.text];
     }
+//    if ([self hasUserOnlyEnteredValuesForDotCom]) {
+//        [WPMobileStats trackEventForSelfHostedAndWPCom:StatsEventNUXFirstWalkthroughSignedInWithoutUrl];
+//        [self signInForWPComForUsername:username andPassword:password];
+//        return;
+//    }
+//    
+//    [WPMobileStats trackEventForSelfHostedAndWPCom:StatsEventNUXFirstWalkthroughSignedInWithUrl];
+//    
+//    if ([self isUrlWPCom:_siteUrlText.text]) {
+//        [self signInForWPComForUsername:username andPassword:password];
+//        return;
+//    }
     
-    [WPMobileStats trackEventForSelfHostedAndWPCom:StatsEventNUXFirstWalkthroughSignedInWithUrl];
-    
-    if ([self isUrlWPCom:_siteUrlText.text]) {
-        [self signInForWPComForUsername:username andPassword:password];
-        return;
-    }
-        
     void (^guessXMLRPCURLSuccess)(NSURL *) = ^(NSURL *xmlRPCURL) {
         WordPressXMLRPCApi *api = [WordPressXMLRPCApi apiWithXMLRPCEndpoint:xmlRPCURL username:username password:password];
         
         [api getBlogOptionsWithSuccess:^(id options){
             [SVProgressHUD dismiss];
             
-            if ([options objectForKey:@"wordpress.com"] != nil) {
-                NSDictionary *siteUrl = [options dictionaryForKey:@"home_url"];
-                _dotComSiteUrl = [siteUrl objectForKey:@"value"];
-                [self signInForWPComForUsername:username andPassword:password];
-            } else {
-                [self signInForSelfHostedForUsername:username password:password options:options andApi:api];
-            }
+//            if ([options objectForKey:@"wordpress.com"] != nil) {
+//                NSDictionary *siteUrl = [options dictionaryForKey:@"home_url"];
+//                _dotComSiteUrl = [siteUrl objectForKey:@"value"];
+//                [self signInForWPComForUsername:username andPassword:password];
+//            } else {
+//                [self signInForSelfHostedForUsername:username password:password options:options andApi:api];
+//            }
+            [self signInForSelfHostedForUsername:username password:password options:options andApi:api];
+            
         } failure:^(NSError *error){
             [SVProgressHUD dismiss];
             [self displayRemoteError:error];
@@ -1316,7 +1383,7 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
     _keyboardOffset = (CGRectGetMaxY(_signInButton.frame) - CGRectGetMinY(keyboardFrame)) + CGRectGetHeight(_signInButton.frame);
 
     [UIView animateWithDuration:animationDuration animations:^{
-        NSArray *controlsToMove = @[_page3Icon, _usernameText, _passwordText, _siteUrlText, _signInButton];
+        NSArray *controlsToMove = @[_page3Icon, _page3Label, _usernameText, _passwordText, _siteUrlText, _signInButton];
         
         for (UIControl *control in controlsToMove) {
             CGRect frame = control.frame;
@@ -1331,7 +1398,7 @@ CGFloat const GeneralWalkthroughSignInButtonHeight = 41.0;
     NSDictionary *keyboardInfo = notification.userInfo;
     CGFloat animationDuration = [[keyboardInfo objectForKey:UIKeyboardAnimationDurationUserInfoKey] floatValue];
     [UIView animateWithDuration:animationDuration animations:^{
-        NSArray *controlsToMove = @[_page3Icon, _usernameText, _passwordText, _siteUrlText, _signInButton];
+        NSArray *controlsToMove = @[_page3Icon, _page3Label, _usernameText, _passwordText, _siteUrlText, _signInButton];
         
         for (UIControl *control in controlsToMove) {
             CGRect frame = control.frame;

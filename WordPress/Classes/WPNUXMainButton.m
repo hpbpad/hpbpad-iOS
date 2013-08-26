@@ -14,12 +14,15 @@
 {
     self = [super initWithFrame:frame];
     if (self) {
-        UIImage *mainImage = [[UIImage imageNamed:@"btn-main"] resizableImageWithCapInsets:UIEdgeInsetsMake(0, 4, 0, 4)];
-        UIImage *inactiveImage = [[UIImage imageNamed:@"btn-main-inactive"] resizableImageWithCapInsets:UIEdgeInsetsMake(0, 4, 0, 4)];
-        UIImage *tappedImage = [[UIImage imageNamed:@"btn-main-tap"] resizableImageWithCapInsets:UIEdgeInsetsMake(0, 4, 0, 4)];
-        [self setTitle:NSLocalizedString(@"Sign In", nil) forState:UIControlStateNormal];
+        //UIImage *mainImage = [[UIImage imageNamed:@"btn-main"] resizableImageWithCapInsets:UIEdgeInsetsMake(0, 4, 0, 4)];
+        //UIImage *inactiveImage = [[UIImage imageNamed:@"btn-main-inactive"] resizableImageWithCapInsets:UIEdgeInsetsMake(0, 4, 0, 4)];
+        //UIImage *tappedImage = [[UIImage imageNamed:@"btn-main-tap"] resizableImageWithCapInsets:UIEdgeInsetsMake(0, 4, 0, 4)];
+        UIImage *mainImage = [[UIImage imageNamed:@"login_normal"] resizableImageWithCapInsets:UIEdgeInsetsMake(0, 4, 0, 4)];
+        //UIImage *inactiveImage = [[UIImage imageNamed:@""] resizableImageWithCapInsets:UIEdgeInsetsMake(0, 4, 0, 4)];
+        UIImage *tappedImage = [[UIImage imageNamed:@"login_on"] resizableImageWithCapInsets:UIEdgeInsetsMake(0, 4, 0, 4)];
+        //[self setTitle:NSLocalizedString(@"Sign In", nil) forState:UIControlStateNormal];
         [self setBackgroundImage:mainImage forState:UIControlStateNormal];
-        [self setBackgroundImage:inactiveImage forState:UIControlStateDisabled];
+        //[self setBackgroundImage:inactiveImage forState:UIControlStateDisabled];
         [self setBackgroundImage:tappedImage forState:UIControlStateHighlighted];
         [self setTitleColor:[UIColor colorWithRed:1.0 green:1.0 blue:1.0 alpha:0.9] forState:UIControlStateNormal];
         [self setTitleColor:[UIColor colorWithRed:1.0 green:1.0 blue:1.0 alpha:0.4] forState:UIControlStateDisabled];

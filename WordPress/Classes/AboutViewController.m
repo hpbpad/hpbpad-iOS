@@ -64,25 +64,44 @@ CGFloat const AboutViewPortraitButtonsY = 90.0f;
     [self dismissModalViewControllerAnimated:YES];
 }
 
--(void)viewTermsOfService:(id)sender {
-	[self openURLWithString:@"http://wordpress.com/tos/"];
+//-(void)viewTermsOfService:(id)sender {
+//	[self openURLWithString:@"http://wordpress.com/tos/"];
+//}
+
+- (IBAction)viewLicense:(id)sender {
+    NSString *path = [[NSBundle mainBundle] pathForResource:@"licenses" ofType:@"html"];
+    NSURL *url = [NSURL fileURLWithPath:path];
+    [self openURL:url];
 }
 
--(void)viewPrivacyPolicy:(id)sender {
-	[self openURLWithString:@"http://automattic.com/privacy/"];
-}
+//-(void)viewPrivacyPolicy:(id)sender {
+//	[self openURLWithString:@"http://automattic.com/privacy/"];
+//}
 
 -(void)viewWebsite:(id)sender {
-    [self openURLWithString:@"http://automattic.com/"];
+    //[self openURLWithString:@"http://automattic.com/"];
+    [self openURLWithString:@"http://www.justsystems.com/jp/"];
 }
 
 - (void)openURLWithString:(NSString *)path {
+//    if (![ReachabilityUtils isInternetReachable]) {
+//        [ReachabilityUtils showAlertNoInternetConnection];
+//        return;
+//    }
+//    WPWebViewController *webViewController = [[WPWebViewController alloc] init];
+//    [webViewController setUrl:[NSURL URLWithString:path]];
+//    [self.navigationController pushViewController:webViewController animated:YES];
+    NSURL *url = [NSURL URLWithString:path];
+    [self openURL:url];
+}
+
+- (void)openURL:(NSURL *)url {
     if (![ReachabilityUtils isInternetReachable]) {
         [ReachabilityUtils showAlertNoInternetConnection];
         return;
     }
     WPWebViewController *webViewController = [[WPWebViewController alloc] init];
-    [webViewController setUrl:[NSURL URLWithString:path]];
+    [webViewController setUrl:url];
     [self.navigationController pushViewController:webViewController animated:YES];
 }
 

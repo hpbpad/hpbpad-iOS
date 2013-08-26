@@ -739,6 +739,10 @@ CGFloat const LoginCompeltedWalkthroughSwipeToContinueTopOffset = 14.0;
         self.parentViewController.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
         [self.parentViewController dismissModalViewControllerAnimated:YES];
         [[WordPressAppDelegate sharedWordPressApplicationDelegate].panelNavigationController teaseSidebar];
+        UIViewController *sidebarViewController = [WordPressAppDelegate sharedWordPressApplicationDelegate].panelNavigationController.masterViewController;
+        if([sidebarViewController respondsToSelector:@selector(showTopMenu)]){
+            [sidebarViewController performSelector:@selector(showTopMenu)];
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 #import "EditPostViewController_Internal.h"
-#import "WPSegmentedSelectionTableViewController.h"
+//#import "WPSegmentedSelectionTableViewController.h"
+#import "TermsSelectionTableViewController.h"
 #import "Post.h"
 #import "AutosavingIndicatorView.h"
 #import "NSString+XMLExtensions.h"
@@ -24,22 +25,22 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
 @end
 
 @implementation EditPostViewController {
-    IBOutlet UITextView *textView;
+    IBOutlet UIView *contentView;
+    IBOutlet UIView *editView;
     IBOutlet UITextField *titleTextField;
-    IBOutlet UITextField *tagsTextField;
     IBOutlet UILabel *titleLabel;
-    IBOutlet UITextField *textViewPlaceHolderField;
-	IBOutlet UIView *contentView;
-	IBOutlet UIView *editView;
-	IBOutlet UIBarButtonItem *writeButton;
-	IBOutlet UIBarButtonItem *previewButton;
-	IBOutlet UIBarButtonItem *attachmentButton;
-    IBOutlet UIBarButtonItem *createCategoryBarButtonItem;
-    IBOutlet UIImageView *tabPointer;
+    IBOutlet UITextField *tagsTextField;
     IBOutlet UILabel *tagsLabel;
     IBOutlet UILabel *categoriesLabel;
     IBOutlet UIButton *categoriesButton;
-
+    IBOutlet UITextView *textView;
+    IBOutlet UITextField *textViewPlaceHolderField;
+    IBOutlet UIBarButtonItem *writeButton;
+    IBOutlet UIBarButtonItem *previewButton;
+    IBOutlet UIBarButtonItem *attachmentButton;
+    IBOutlet UIBarButtonItem *createCategoryBarButtonItem;
+    IBOutlet UIImageView *tabPointer;
+    
     WPKeyboardToolbar *editorToolbar;
     UIView *currentView;
     BOOL isEditing;
@@ -48,7 +49,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     BOOL isNewCategory;
     BOOL isShowingLinkAlert;
     UITextField *__weak currentEditingTextField;
-    WPSegmentedSelectionTableViewController *segmentedTableViewController;
+    TermsSelectionTableViewController *segmentedTableViewController;
     UIActionSheet *currentActionSheet;
     UITextField *infoText;
     UITextField *urlField;
@@ -100,7 +101,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     categoriesLabel.text = NSLocalizedString(@"Categories:", @"Label for the categories field. Should be the same as WP core.");
     textViewPlaceHolderField.placeholder = NSLocalizedString(@"Tap here to begin writing", @"Placeholder for the main body text. Should hint at tapping to enter text (not specifying body text).");
 	textViewPlaceHolderField.textAlignment = UITextAlignmentCenter;
-
+    
     if (editorToolbar == nil) {
         CGRect frame = CGRectMake(0, 0, self.view.frame.size.width, WPKT_HEIGHT_PORTRAIT);
         editorToolbar = [[WPKeyboardToolbar alloc] initWithFrame:frame];
@@ -136,7 +137,8 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillShow:) name:UIKeyboardWillShowNotification object:nil];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(keyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(deviceDidRotate:) name:@"UIDeviceOrientationDidChangeNotification" object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(newCategoryCreatedNotificationReceived:) name:WPNewCategoryCreatedAndUpdatedInBlogNotificationName object:nil];
+    //[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(newCategoryCreatedNotificationReceived:) name:WPNewCategoryCreatedAndUpdatedInBlogNotificationName object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(newTermCreatedNotificationReceived:) name:WPNewTermCreatedAndUpdatedInBlogNotificationName object:nil];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(insertMediaAbove:) name:@"ShouldInsertMediaAbove" object:nil];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(insertMediaBelow:) name:@"ShouldInsertMediaBelow" object:nil];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(removeMedia:) name:@"ShouldRemoveMedia" object:nil];	
@@ -201,7 +203,15 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     animateWiggleIt.fromValue = @0.75f;
     animateWiggleIt.toValue = @1.f;
 	[textViewPlaceHolderField.layer addAnimation:animateWiggleIt forKey:@"placeholderWiggle"];
-
+    
+    // 「投稿」以外ではタグ入力欄を非表示。タクソノミー入力欄を上につめる。
+    BOOL hasTags = [self.post.postType isEqualToString:@"post"];
+    if(!hasTags){
+        CGAffineTransform transform = CGAffineTransformMakeTranslation(0, -1 * self.tagsView.frame.size.height);
+        self.categoriesView.transform = transform;
+        textView.transform = transform;
+    }
+    [self.tagsView setHidden:!hasTags];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -500,13 +510,18 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
 - (void)populateSelectionsControllerWithCategories {
     WPFLogMethod();
     if (segmentedTableViewController == nil)
-        segmentedTableViewController = [[WPSegmentedSelectionTableViewController alloc] initWithNibName:@"WPSelectionTableViewController" bundle:nil];
+        segmentedTableViewController = [[TermsSelectionTableViewController alloc] initWithNibName:@"WPSelectionTableViewController" bundle:nil];
 	
-	NSArray *cats = [self.post.blog sortedCategories];
-
-	NSArray *selObject = [self.post.categories allObjects];
+	//NSArray *cats = [self.post.blog sortedCategories];
+    
+	//NSMutableArray *cats = nil;
+    NSArray *taxonomies = [self.post.blog taxonomiesOfPostType:self.post.postType];
+    
+	//NSArray *selObject = [self.post.categories allObjects];
+	NSArray *selObject = [self.post.terms allObjects];
 	
-    [segmentedTableViewController populateDataSource:cats    //datasource
+    //[segmentedTableViewController populateDataSource:cats    //datasource
+    [segmentedTableViewController populateDataSource:taxonomies    //datasource
 									   havingContext:kSelectionsCategoriesContext
 									 selectedObjects:selObject
 									   selectionType:kCheckbox
@@ -517,7 +532,11 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
         createCategoryBarButtonItem = [[UIBarButtonItem alloc] initWithImage:[UIImage imageNamed:@"navbar_add"]style:UIBarButtonItemStyleBordered 
                                                                       target:self 
                                                                       action:@selector(showAddNewCategoryView:)];
-    } 
+    }
+    // taxonomyが一つも無い場合[新規追加]ボタンを表示しない。
+    if([taxonomies count] < 1){
+        createCategoryBarButtonItem = nil;
+    }
     
     segmentedTableViewController.navigationItem.rightBarButtonItem = createCategoryBarButtonItem;
 	
@@ -558,7 +577,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     if (selContext == kSelectionsCategoriesContext) {
         NSLog(@"selected categories: %@", selectedObjects);
         NSLog(@"post: %@", self.post);
-        self.post.categories = [NSMutableSet setWithArray:selectedObjects];
+        self.post.terms = [NSMutableSet setWithArray:selectedObjects];
         [categoriesButton setTitle:[NSString decodeXMLCharactersIn:[self.post categoriesText]] forState:UIControlStateNormal];
     }
 
@@ -569,7 +588,16 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
 }
 
 
+/*
 - (void)newCategoryCreatedNotificationReceived:(NSNotification *)notification {
+    WPFLogMethod();
+    if ([segmentedTableViewController curContext] == kSelectionsCategoriesContext) {
+        isNewCategory = YES;
+        [self populateSelectionsControllerWithCategories];
+    }
+}
+*/
+- (void)newTermCreatedNotificationReceived:(NSNotification *)notification {
     WPFLogMethod();
     if ([segmentedTableViewController curContext] == kSelectionsCategoriesContext) {
         isNewCategory = YES;
@@ -583,6 +611,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     WPFLogMethod();
     WPAddCategoryViewController *addCategoryViewController = [[WPAddCategoryViewController alloc] initWithNibName:@"WPAddCategoryViewController" bundle:nil];
     addCategoryViewController.blog = self.post.blog;
+    addCategoryViewController.postType = self.post.postType;
 	if (IS_IPAD == YES) {
         [segmentedTableViewController pushViewController:addCategoryViewController animated:YES];
  	} else {
@@ -1525,7 +1554,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     if ((popoverController.contentViewController) && ([popoverController.contentViewController class] == [UINavigationController class])) {
         UINavigationController *nav = (UINavigationController *)popoverController.contentViewController;
         if ([nav.viewControllers count] == 2) {
-            WPSegmentedSelectionTableViewController *selController = [nav.viewControllers objectAtIndex:0];
+            TermsSelectionTableViewController *selController = [nav.viewControllers objectAtIndex:0];
             [selController popViewControllerAnimated:YES];
         }
     }
@@ -1540,4 +1569,23 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     [super didReceiveMemoryWarning];
 }
 
+- (void)viewDidUnload {
+    titleTextField = nil;
+    contentView = nil;
+    editView = nil;
+    titleLabel = nil;
+    tagsLabel = nil;
+    tagsTextField = nil;
+    categoriesLabel = nil;
+    categoriesButton = nil;
+    textView = nil;
+    textViewPlaceHolderField = nil;
+    categoriesButton = nil;
+    writeButton = nil;
+    previewButton = nil;
+    attachmentButton = nil;
+    [self setSettingsButton:nil];
+    textView = nil;
+    [super viewDidUnload];
+}
 @end

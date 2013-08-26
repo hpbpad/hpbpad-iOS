@@ -26,6 +26,7 @@ typedef enum {
 @property (nonatomic, strong) NSString * author;
 @property (nonatomic, strong) NSDate * date_created_gmt;
 @property (nonatomic, strong) NSString * postTitle;
+@property (nonatomic, strong) NSString * postType;
 @property (nonatomic, strong) NSString * content;
 @property (nonatomic, strong) NSString * status;
 @property (nonatomic, weak) NSString * statusTitle;

@@ -130,17 +130,17 @@
 		str = [str stringByReplacingOccurrencesOfString:@"!$mt_keywords$!" withString:tags];
 		
 		//Categories [selObjects count]
-		NSArray *categories = [self.post.categories allObjects];
-		NSString *catStr = @"";
-		int i = 0, count = [categories count];
+		NSArray *terms = [self.post.terms allObjects];
+		NSString *termStr = @"";
+		int i = 0, count = [terms count];
 		for (i = 0; i < count; i++) {
-			Category *category = [categories objectAtIndex:i];
-			catStr = [catStr stringByAppendingString:category.categoryName];
+			Term *term = [terms objectAtIndex:i];
+			termStr = [termStr stringByAppendingString:term.name];
 			if(i < count-1)
-				catStr = [catStr stringByAppendingString:@", "];
+				termStr = [termStr stringByAppendingString:@", "];
 		}
-		catStr = [NSString stringWithFormat:NSLocalizedString(@"Categories: %@", @""), catStr]; //desc = [NSString stringWithFormat:@"%@ \n <p>Categories: %@</p><br>", desc, catStr];
-		str = [str stringByReplacingOccurrencesOfString:@"!$categories$!" withString:catStr];
+		termStr = [NSString stringWithFormat:NSLocalizedString(@"Terms: %@", @""), termStr]; //desc = [NSString stringWithFormat:@"%@ \n <p>Categories: %@</p><br>", desc, catStr];
+		str = [str stringByReplacingOccurrencesOfString:@"!$terms$!" withString:termStr];
 
 	} else {
 		str = @"";

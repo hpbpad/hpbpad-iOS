@@ -608,12 +608,15 @@
             
             _menuView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0, MENU_BUTTON_WIDTH, 30.0f)];
             
-            _menuButton = [[UIButton alloc] initWithFrame:CGRectMake(0, 0, 35.0f, 30.0f)];
-            [_menuButton setImage:[UIImage imageNamed:@"navbar_toggle"] forState:UIControlStateNormal];
-            [_menuButton setImage:[UIImage imageNamed:@"navbar_toggle"] forState:UIControlStateHighlighted];
+            //_menuButton = [[UIButton alloc] initWithFrame:CGRectMake(0, 0, 35.0f, 30.0f)];
+            _menuButton = [[UIButton alloc] initWithFrame:CGRectMake(0, -1, 36.0f, 32.0f)];
+            [_menuButton setImage:[UIImage imageNamed:@"menuiconlong"] forState:UIControlStateNormal];
+            [_menuButton setImage:[UIImage imageNamed:@"menuiconlong_on"] forState:UIControlStateHighlighted];
+            //[_menuButton setImage:[UIImage imageNamed:@"navbar_toggle"] forState:UIControlStateNormal];
+            //[_menuButton setImage:[UIImage imageNamed:@"navbar_toggle"] forState:UIControlStateHighlighted];
             [_menuButton setImageEdgeInsets:UIEdgeInsetsMake(0, 3.0f, 0.0f, 0)];
-            [_menuButton setBackgroundImage:[[UIImage imageNamed:@"menu_notification_left_bg"] resizableImageWithCapInsets:UIEdgeInsetsMake(3.0f, 3.0f, 3.0f, 0)] forState:UIControlStateNormal];
-            [_menuButton setBackgroundImage:[[UIImage imageNamed:@"menu_notification_left_bg_down"] resizableImageWithCapInsets:UIEdgeInsetsMake(3.0f, 3.0f, 3.0f, 0)] forState:UIControlStateHighlighted];
+            //[_menuButton setBackgroundImage:[[UIImage imageNamed:@"menu_notification_left_bg"] resizableImageWithCapInsets:UIEdgeInsetsMake(3.0f, 3.0f, 3.0f, 0)] forState:UIControlStateNormal];
+            //[_menuButton setBackgroundImage:[[UIImage imageNamed:@"menu_notification_left_bg_down"] resizableImageWithCapInsets:UIEdgeInsetsMake(3.0f, 3.0f, 3.0f, 0)] forState:UIControlStateHighlighted];
             [_menuButton addTarget:self action:@selector(toggleSidebar) forControlEvents:UIControlEventTouchUpInside];
             [_menuButton addTarget:self action:@selector(highlightMenuButton:) forControlEvents:UIControlEventTouchDown];
             [_menuButton addTarget:self action:@selector(resetMenuButton:) forControlEvents:UIControlEventTouchUpInside];
@@ -621,9 +624,9 @@
             
             _notificationButton = [[UIButton alloc] initWithFrame:CGRectMake(5.0f, 0.0, 33.0f, 30.0f)];
             [_notificationButton setAlpha:1.0f];
-            [_notificationButton setImage:[UIImage imageNamed:@"note_icon_comment"] forState:UIControlStateNormal];
-            [_notificationButton setBackgroundImage:[[UIImage imageNamed:@"menu_notification_right_bg"] resizableImageWithCapInsets:UIEdgeInsetsMake(3.0f, 0.0f, 3.0f, 3.0f)] forState:UIControlStateNormal];
-            [_notificationButton setBackgroundImage:[[UIImage imageNamed:@"menu_notification_right_bg_down"] resizableImageWithCapInsets:UIEdgeInsetsMake(3.0f, 0.0f, 3.0f, 3.0f)] forState:UIControlStateHighlighted];
+            //[_notificationButton setImage:[UIImage imageNamed:@"note_icon_comment"] forState:UIControlStateNormal];
+            //[_notificationButton setBackgroundImage:[[UIImage imageNamed:@"menu_notification_right_bg"] resizableImageWithCapInsets:UIEdgeInsetsMake(3.0f, 0.0f, 3.0f, 3.0f)] forState:UIControlStateNormal];
+            //[_notificationButton setBackgroundImage:[[UIImage imageNamed:@"menu_notification_right_bg_down"] resizableImageWithCapInsets:UIEdgeInsetsMake(3.0f, 0.0f, 3.0f, 3.0f)] forState:UIControlStateHighlighted];
             [_notificationButton setImageEdgeInsets:UIEdgeInsetsMake(0, 2.0f, 0.0f, 0)];
             [_notificationButton addTarget:self action:@selector(highlightMenuButton:) forControlEvents:UIControlEventTouchDown];
             [_notificationButton addTarget:self action:@selector(notificationButtonTap) forControlEvents:UIControlEventTouchUpInside];

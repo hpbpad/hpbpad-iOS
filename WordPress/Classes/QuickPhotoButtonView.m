@@ -63,11 +63,14 @@
     button.titleLabel.minimumFontSize = 12.0f;
     button.titleLabel.textAlignment = NSTextAlignmentCenter;
     [button.titleLabel setFont:[UIFont boldSystemFontOfSize:15.0f]];
-    [button setBackgroundImage:[[UIImage imageNamed:@"SidebarToolbarButton"] stretchableImageWithLeftCapWidth:5.0 topCapHeight:0.0] forState:UIControlStateNormal];
-    [button setBackgroundImage:[[UIImage imageNamed:@"SidebarToolbarButtonHighlighted"] stretchableImageWithLeftCapWidth:5.0 topCapHeight:0.0] forState:UIControlStateHighlighted];
+    //[button setBackgroundImage:[[UIImage imageNamed:@"SidebarToolbarButton"] stretchableImageWithLeftCapWidth:5.0 topCapHeight:0.0] forState:UIControlStateNormal];
+    //[button setBackgroundImage:[[UIImage imageNamed:@"SidebarToolbarButtonHighlighted"] stretchableImageWithLeftCapWidth:5.0 topCapHeight:0.0] forState:UIControlStateHighlighted];
+    [button setBackgroundImage:[self imageWithColor:[UIColor colorWithRed:114.0/255.0 green:109.0/255.0 blue:109.0/255.0 alpha:1.0]] forState:UIControlStateNormal];
+    [button setBackgroundImage:[self imageWithColor:[UIColor colorWithRed:234.0/255.0 green:59.0/255.0 blue:145.0/255.0 alpha:1.0]] forState:UIControlStateHighlighted];
+    
     [button setTitle:NSLocalizedString(@"Photo", @"") forState:UIControlStateNormal];
     [button addTarget:self action:@selector(handleButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
-    [button setBackgroundColor:[UIColor clearColor]];
+    //[button setBackgroundColor:[UIColor clearColor]];
     [button setImage:[UIImage imageNamed:@"sidebar_camera"] forState:UIControlStateNormal];
     [button setTitleEdgeInsets:UIEdgeInsetsMake(0.0f, 12.0f, 0.0f, 10.0f)];
     [button setImageEdgeInsets:UIEdgeInsetsMake(0.0f, 8.0f, 0.0f, 0.0f)];
@@ -206,6 +209,18 @@
             label.text = NSLocalizedString(@"Uploading...", @"");
         }];
     }
+}
+
+//　指定したUIColorで塗り潰したUIImageを返す
+- (UIImage *)imageWithColor:(UIColor *)color {
+    CGRect rect = CGRectMake(0.0f, 0.0f, 1.0f, 1.0f);
+    UIGraphicsBeginImageContext(rect.size);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    CGContextSetFillColorWithColor(context, [color CGColor]);
+    CGContextFillRect(context, rect);
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image;
 }
 
 @end

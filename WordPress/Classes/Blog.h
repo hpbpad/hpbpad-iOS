@@ -13,6 +13,8 @@
 #import "Reachability.h"
 
 #define BlogChangedNotification @"BlogChangedNotification"
+#define BlogThumbnailUpdatedNotification @"BlogThumbnailUpdatedNotification"
+#define BlogThumbnailUpdateErrorNotification @"BlogThumbnailUpdateErrorNotification"
 
 @class WPAccount;
 
@@ -24,14 +26,18 @@
 @property (nonatomic, strong) NSNumber *isAdmin, *hasOlderPosts, *hasOlderPages;
 @property (nonatomic, strong) NSSet *posts;
 @property (nonatomic, strong) NSSet *categories;
+@property (nonatomic, strong) NSSet *terms;
+@property (nonatomic, strong) NSSet *postTypes;
 @property (nonatomic, strong) NSSet *comments;
 @property (nonatomic, assign) BOOL isSyncingPosts;
 @property (nonatomic, assign) BOOL isSyncingPages;
 @property (nonatomic, assign) BOOL isSyncingComments;
+@property (nonatomic, assign) BOOL isSyncingPostTypes;
 @property (nonatomic, strong) NSDate *lastPostsSync;
 @property (nonatomic, strong) NSDate *lastPagesSync;
 @property (nonatomic, strong) NSDate *lastCommentsSync;
 @property (nonatomic, strong) NSDate *lastStatsSync;
+@property (nonatomic, strong) NSDate *lastPostTypesSync;
 @property (nonatomic, strong) NSString *lastUpdateWarning;
 @property (nonatomic, assign) BOOL geolocationEnabled;
 @property (nonatomic, weak) NSNumber *isActivated;
@@ -46,6 +52,8 @@
 @property (nonatomic, readonly, strong) NSString *password;
 @property (weak, readonly) Reachability *reachability;
 @property (readonly) BOOL reachable;
+@property (nonatomic, strong) NSMutableArray *postLists;
+@property (nonatomic, strong) UIImage *thumbnail;
 
 /**
  URL properties (example: http://wp.koke.me/sub/xmlrpc.php)
@@ -75,6 +83,10 @@
 - (NSArray *)getXMLRPCArgsWithExtra:(id)extra;
 - (int)numberOfPendingComments;
 - (NSDictionary *) getImageResizeDimensions;
+- (void) getPostTypesWithSuccess:(void (^)())success failure:(void(^)())failue;
+- (void) initPostListWithSuccess:(void (^)())_success;
+- (NSInteger) postTypesCount;
+- (NSArray *)taxonomiesOfPostType:(NSString *)postType;
 
 #pragma mark - 
 
@@ -96,6 +108,9 @@
 - (void)syncBlogPostsWithSuccess:(void (^)())success failure:(void (^)(NSError *error))failure;
 - (void)checkActivationStatusWithSuccess:(void (^)())success failure:(void (^)(NSError *error))failure;
 - (void)checkVideoPressEnabledWithSuccess:(void (^)(BOOL enabled))success failure:(void (^)(NSError *error))failure;
+
+- (UIImage *)getThumbnail;
+- (void)updateThumbnail;
 
 #pragma mark -
 #pragma mark Class methods

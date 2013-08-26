@@ -25,10 +25,13 @@
     if (self) {
         self.textLabel.shadowOffset = CGSizeMake(0, 1.1f);
         self.textLabel.shadowColor = [UIColor blackColor];
-        self.textLabel.textColor = [UIColor colorWithRed:221.0f/255.0f green:221.0f/255.0f blue:221.0f/255.0f alpha:1.0f];
+        //self.textLabel.textColor = [UIColor colorWithRed:221.0f/255.0f green:221.0f/255.0f blue:221.0f/255.0f alpha:1.0f];
+        self.textLabel.textColor = [UIColor colorWithRed:255.0f/255.0f green:255.0f/255.0f blue:255.0f/255.0f alpha:1.0f];
         self.textLabel.font = [UIFont systemFontOfSize:17.0];
         self.backgroundView = [[UIImageView alloc] initWithImage:[[UIImage imageNamed:@"sidebar_cell_bg"] stretchableImageWithLeftCapWidth:0 topCapHeight:1]];
-        self.selectedBackgroundView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"sidebar_cell_bg_selected"]];
+        //self.selectedBackgroundView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"sidebar_cell_bg_selected"]];
+        self.selectedBackgroundView = [[UIImageView alloc] init];
+        [self.selectedBackgroundView setBackgroundColor:[UIColor colorWithRed:234.0/255.0 green:59.0/255.0 blue:145.0/255.0 alpha:1.0]];
     }
     return self;
 }

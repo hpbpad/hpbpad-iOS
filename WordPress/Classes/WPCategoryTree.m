@@ -21,10 +21,11 @@
     int i, count = [collection count];
 
     for (i = 0; i < count; i++) {
-        NSDictionary *category = [collection objectAtIndex:i];
+        NSDictionary *term = [collection objectAtIndex:i];
 
-        if ([[category valueForKey:@"parentID"] intValue] ==[[parent valueForKey:@"categoryID"] intValue]) {
-            WPCategoryTree *child = [[WPCategoryTree alloc] initWithParent:category];
+        //if ([[category valueForKey:@"parentID"] intValue] ==[[parent valueForKey:@"categoryID"] intValue]) {
+        if ([[term valueForKey:@"parent"] intValue] ==[[parent valueForKey:@"termID"] intValue]) {
+            WPCategoryTree *child = [[WPCategoryTree alloc] initWithParent:term];
             [child getChildrenFromObjects:collection];
             [children addObject:child];
         }

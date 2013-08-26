@@ -8,13 +8,16 @@
 #import "Blog.h"
 #import "Post.h"
 #import "Page.h"
-#import "Category.h"
+#import "Term.h"
 #import "Comment.h"
+#import "PostType.h"
 #import "WPAccount.h"
 #import "UIImage+Resize.h"
 #import "NSURL+IDN.h"
 #import "NSString+XMLExtensions.h"
 #import "WPError.h"
+#import "PostList.h"
+#import <QuartzCore/QuartzCore.h>
 
 @interface Blog (PrivateMethods)
 - (WPXMLRPCRequestOperation *)operationForOptionsWithSuccess:(void (^)())success failure:(void (^)(NSError *error))failure;
@@ -28,6 +31,7 @@
 - (void)mergeComments:(NSArray *)newComments;
 - (void)mergePages:(NSArray *)newPages;
 - (void)mergePosts:(NSArray *)newPosts;
+- (void)mergePostTypes:(NSArray *)newPostTypes;
 
 @property (readwrite, assign) BOOL reachable;
 @end
@@ -38,16 +42,20 @@
     NSString *_blavatarUrl;
     Reachability *_reachability;
     BOOL _isReachable;
+    
+    UIWebView* _webView;
+    NSInteger _webViewLoadingCount;
 }
 
 @dynamic blogID, blogName, url, xmlrpc, apiKey;
 @dynamic isAdmin, hasOlderPosts, hasOlderPages;
-@dynamic posts, categories, comments; 
-@dynamic lastPostsSync, lastStatsSync, lastPagesSync, lastCommentsSync, lastUpdateWarning;
-@synthesize isSyncingPosts, isSyncingPages, isSyncingComments;
+@dynamic posts, categories, comments, terms, postTypes;
+@dynamic lastPostsSync, lastStatsSync, lastPagesSync, lastCommentsSync, lastUpdateWarning, lastPostTypesSync;
+@synthesize isSyncingPosts, isSyncingPages, isSyncingComments, isSyncingPostTypes;
 @dynamic geolocationEnabled, options, postFormats, isActivated;
 @dynamic account;
 @dynamic jetpackAccount;
+@synthesize postLists, thumbnail;
 
 #pragma mark -
 #pragma mark Dealloc
@@ -195,7 +203,7 @@
 }
 
 -(NSArray *)sortedCategories {
-	NSSortDescriptor *sortNameDescriptor = [[NSSortDescriptor alloc] initWithKey:@"categoryName" 
+	NSSortDescriptor *sortNameDescriptor = [[NSSortDescriptor alloc] initWithKey:@"termName"
 																		ascending:YES 
 																		 selector:@selector(caseInsensitiveCompare:)];
 	NSArray *sortDescriptors = [[NSArray alloc] initWithObjects:sortNameDescriptor, nil];
@@ -348,7 +356,9 @@
 - (NSArray *)syncedPostsWithEntityName:(NSString *)entityName {
     NSFetchRequest *request = [[NSFetchRequest alloc] init];
     [request setEntity:[NSEntityDescription entityForName:entityName inManagedObjectContext:[self managedObjectContext]]];
-    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"(remoteStatusNumber = %@) AND (postID != NULL) AND (original == NULL) AND (blog = %@)",
+    // postのみ
+    //NSPredicate *predicate = [NSPredicate predicateWithFormat:@"(remoteStatusNumber = %@) AND (postID != NULL) AND (original == NULL) AND (blog = %@)",
+    NSPredicate *predicate = [NSPredicate predicateWithFormat:@"(remoteStatusNumber = %@) AND (postID != NULL) AND (original == NULL) AND (blog = %@) AND (postType = 'post')",
 							  [NSNumber numberWithInt:AbstractPostRemoteStatusSync], self]; 
     [request setPredicate:predicate];
     NSSortDescriptor *sortDescriptor = [[NSSortDescriptor alloc] initWithKey:@"date_created_gmt" ascending:YES];
@@ -391,6 +401,10 @@
     [self.api enqueueXMLRPCRequestOperation:operation];
 }
 
+- (void)syncPostTypesWithSuccess:(void (^)())success failure:(void (^)(NSError *error))failure {
+    WPXMLRPCRequestOperation *operation = [self operationForPostTypesWithSuccess:success failure:failure];
+    [self.api enqueueXMLRPCRequestOperation:operation];
+}
 - (void)syncCategoriesWithSuccess:(void (^)())success failure:(void (^)(NSError *error))failure {
     WPXMLRPCRequestOperation *operation = [self operationForCategoriesWithSuccess:success failure:failure];
     [self.api enqueueXMLRPCRequestOperation:operation];
@@ -471,9 +485,12 @@
     operation = [self operationForCategoriesWithSuccess:nil failure:nil];
     [operations addObject:operation];
     if (!self.isSyncingPosts) {
-        operation = [self operationForPostsWithSuccess:success failure:failure loadMore:NO];
-        [operations addObject:operation];
-        self.isSyncingPosts = YES;
+        //operation = [self operationForPostsWithSuccess:success failure:failure loadMore:NO];
+        //[operations addObject:operation];
+        //self.isSyncingPosts = YES;
+        for (PostList* postList in self.postLists) {
+            [postList syncPostsWithSuccess:success failure:failure loadMore:NO];
+        }
     }
     
     AFHTTPRequestOperation *combinedOperation = [self.api combinedHTTPRequestOperationWithOperations:operations success:nil failure:nil];
@@ -651,7 +668,7 @@
         if ([self isDeleted] || self.managedObjectContext == nil)
             return;
 
-        [self mergeCategories:responseObject];
+        //[self mergeCategories:responseObject];
         if (success) {
             success();
         }
@@ -684,8 +701,12 @@
         num = postBatchSize;
     }
 
-    NSArray *parameters = [self getXMLRPCArgsWithExtra:[NSNumber numberWithInt:num]];
-    WPXMLRPCRequest *request = [self.api XMLRPCRequestWithMethod:@"metaWeblog.getRecentPosts" parameters:parameters];
+    // post_typeはなにも指定しなくてもpostが取得される様子。一応指定しておく。
+    NSString *postType = @"post";
+    // numberも指定しておく。
+    NSDictionary *extra = @{ @"post_type" : postType, @"number" : [NSNumber numberWithInt:num] };
+    NSArray *parameters = [self getXMLRPCArgsWithExtra:extra];
+    WPXMLRPCRequest *request = [self.api XMLRPCRequestWithMethod:@"wp.getPosts" parameters:parameters];
     WPXMLRPCRequestOperation *operation = [self.api XMLRPCRequestOperationWithRequest:request success:^(AFHTTPRequestOperation *operation, id responseObject) {
         if ([self isDeleted] || self.managedObjectContext == nil)
             return;
@@ -693,6 +714,8 @@
         NSArray *posts = (NSArray *)responseObject;
 
         // If we asked for more and we got what we had, there are no more posts to load
+        //NSSet *set = [self.posts filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"postType == %@",postType]];
+        //if (more && ([posts count] <= [set count])) {
         if (more && ([posts count] <= [self.posts count])) {
             self.hasOlderPosts = [NSNumber numberWithBool:NO];
         } else if (!more) {
@@ -700,7 +723,7 @@
             self.hasOlderPosts = [NSNumber numberWithBool:YES];
         }
 
-        [self mergePosts:posts];
+        //[self mergePosts:posts];
 
         self.lastPostsSync = [NSDate date];
         self.isSyncingPosts = NO;
@@ -773,8 +796,50 @@
     return operation;
 }
 
+- (WPXMLRPCRequestOperation *)operationForPostTypesWithSuccess:(void (^)())success failure:(void (^)(NSError *error))failure {
+    
+    //NSArray *parameters = [self getXMLRPCArgsWithExtra:nil];
+    NSArray *parameters = [self getXMLRPCArgsWithExtra:[NSArray arrayWithObjects:@"menu",nil]];
+    WPXMLRPCRequest *request = [self.api XMLRPCRequestWithMethod:@"wp.getPostTypes" parameters:parameters];
+    WPXMLRPCRequestOperation *operation = [self.api XMLRPCRequestOperationWithRequest:request success:^(AFHTTPRequestOperation *operation, id responseObject) {
+        if ([self isDeleted] || self.managedObjectContext == nil)
+            return;
+        
+        // Mutableにして、不要な項目を削除。（「カスタム投稿タイプ」と見なさないもの）
+        NSMutableDictionary *object = [NSMutableDictionary dictionaryWithDictionary:responseObject];
+        [object removeObjectForKey:@"feedback"]; // フィードバック
+        [object removeObjectForKey:@"page"]; // 固定ページ
+        [object removeObjectForKey:@"attachment"]; // メディア
+        
+        PostList *pl;
+        self.postLists = [[NSMutableArray alloc] init];
+        for (id key in object) {
+            pl = [[PostList alloc] initWithBlog:self postType:[object valueForKey:key]];
+            if ( [key isEqual:@"post"] ){
+                [self.postLists insertObject:pl atIndex:0];
+            } else {
+                [self.postLists addObject:pl];
+            }
+        }
+        
+        [self mergePostTypes:[object allValues]];
+        
+        //self.lastPostTypesSync = [NSDate date];
+        self.isSyncingPostTypes = NO;
+        
+        if (success) { success(); }
+        
+    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+        WPFLog(@"Error syncing post types: %@", [error localizedDescription]);
+        if (failure) { failure(error); }
+    }];
+    
+    return operation;
+}
+
 #pragma mark -
 
+/*
 - (void)mergeCategories:(NSArray *)newCategories {
     // Don't even bother if blog has been deleted while fetching categories
     if ([self isDeleted] || self.managedObjectContext == nil)
@@ -802,6 +867,7 @@
 
     [self dataSave];
 }
+*/
 
 - (void)mergePosts:(NSArray *)newPosts {
     // Don't even bother if blog has been deleted while fetching posts
@@ -810,7 +876,8 @@
 
     NSMutableArray *postsToKeep = [NSMutableArray array];
     for (NSDictionary *postInfo in newPosts) {
-        NSNumber *postID = [[postInfo objectForKey:@"postid"] numericValue];
+        //NSNumber *postID = [[postInfo objectForKey:@"postid"] numericValue];
+        NSNumber *postID = [[postInfo objectForKey:@"post_id"] numericValue];
         Post *newPost = [Post findOrCreateWithBlog:self andPostID:postID];
         if (newPost.remoteStatus == AbstractPostRemoteStatusSync) {
             [newPost updateFromDictionary:postInfo];
@@ -926,8 +993,202 @@
 			}
 		}
     }
-
     [self dataSave];
 }
+
+- (void)mergePostTypes:(NSArray *)newPostTypes {
+    if ([self isDeleted] || self.managedObjectContext == nil) return;
+
+    NSMutableArray *postTypesToKeep = [NSMutableArray array];
+    for (NSDictionary *postTypeInfo in newPostTypes) {
+        PostType *newPostType = [PostType createOrReplaceFromDictionary:postTypeInfo forBlog:self];
+        if (newPostType != nil) {
+            [postTypesToKeep addObject:newPostType];
+        } else {
+            WPFLog(@"-[PostType createOrReplaceFromDictionary:forBlog:] returned a nil posttype: %@", postTypeInfo);
+        }
+    }
+    NSSet *syncedPostTypes = self.postTypes;
+    for (PostType *postType in syncedPostTypes) {
+		if (![postTypesToKeep containsObject:postType]) {
+            WPLog(@"Deleting postType: %@", postType);
+            [[self managedObjectContext] deleteObject:postType];
+        }
+    }
+    [self dataSave];
+}
+
+-(void)initPostListWithSuccess:(void (^)())_success  {
+    
+    [self setPostListsWithPostTypes:[self.postTypes allObjects]];
+    
+//    [self syncPostTypesWithSuccess:nil failure:nil];
+    void (^success)(AFHTTPRequestOperation *, id) = ^(AFHTTPRequestOperation *operation, id responseObject) {
+        // Mutableにして、不要な項目を削除。（「カスタム投稿タイプ」と見なさないもの）
+        NSMutableDictionary *object = [NSMutableDictionary dictionaryWithDictionary:responseObject];
+        [object removeObjectForKey:@"feedback"]; // フィードバック
+        [object removeObjectForKey:@"page"]; // 固定ページ
+        [object removeObjectForKey:@"attachment"]; // メディア
+        
+        [self mergePostTypes:[object allValues]];
+        [self setPostListsWithPostTypes:[self.postTypes allObjects]];
+        
+        //self.lastPostTypesSync = [NSDate date];
+        self.isSyncingPostTypes = NO;
+        
+        if (_success) _success();
+    };
+    void (^failure)(AFHTTPRequestOperation *, NSError *) = ^(AFHTTPRequestOperation *operation, NSError *error) {
+    };
+    [self getPostTypesWithSuccess:success failure:failure];
+}
+
+- (void)setPostListsWithPostTypes:(NSArray *)postTypes {
+    PostList *pl;
+    self.postLists = [[NSMutableArray alloc] init];
+    for (int i=0; i < [postTypes count]; i++) {
+        pl = [[PostList alloc] initWithBlog:self postType:[postTypes objectAtIndex:i]];
+        if ( [pl.postType.name isEqual:@"post"] ){
+            [self.postLists insertObject:pl atIndex:0];
+        } else {
+            [self.postLists addObject:pl];
+        }
+    }
+}
+
+- (void)getPostTypesWithSuccess:(void(^)())success failure:(void(^)())failure {
+    NSString *method = @"wp.getPostTypes";
+    NSMutableDictionary *filter = [NSMutableDictionary dictionary];
+    [filter setValue:[NSNumber numberWithBool:YES] forKey:@"show_in_menu"];
+    NSArray *fields = [NSArray arrayWithObjects:@"menu", @"taxonomies", nil];
+    NSArray *parameters = [self getXMLRPCArgsWithExtra:[NSArray arrayWithObjects:filter, fields, nil]];
+    [self.api callMethod:method parameters:parameters success:success failure:failure ];
+
+}
+
+-(NSInteger)postTypesCount {
+    return [self.postLists count];
+}
+
+-(PostList *)postListForPostType:(NSString *)postType {
+    PostList *postList = nil;
+    for (postList in self.postLists) {
+        if ([[postList.postType valueForKeyPath:@"name"] isEqual:postType] ){
+            return postList;
+        }
+    }
+    return nil;
+}
+
+-(NSArray *)taxonomiesOfPostType:(NSString *)postType {
+    PostList *postList = [self postListForPostType:postType];
+    //return [postList.taxonomies filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"name != %@",@"post_tag"]];
+    NSMutableArray* array = [NSMutableArray array];
+    [array addObject:[NSPredicate predicateWithFormat:@"name != %@",@"post_tag"]];
+    [array addObject:[NSPredicate predicateWithFormat:@"name != %@",@"post_format"]];
+    NSPredicate* predicate = [NSCompoundPredicate andPredicateWithSubpredicates:array];
+    return [postList.taxonomies filteredArrayUsingPredicate:predicate];
+}
+
+
+/* thumbnail作成関連 */
+// thumbnail取得
+-(UIImage *)getThumbnail {
+    UIImage* image = nil;
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    NSString *path = [self thumbnailPath];
+    if([fileManager fileExistsAtPath:path]){
+        // ファイルが存在すれば、UIImageにして返す。
+        image = [UIImage imageWithData:[NSData dataWithContentsOfFile:path]];
+    } else {
+        // ファイルが存在しなければ、読み込む。(返すのはnil)
+        [self loadThumbnail];
+    }
+    return image; // ここも返り値でなくnotificationで渡してもよい
+}
+// thumbnail更新
+-(void)updateThumbnail {
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    NSString *path = [self thumbnailPath];
+    if([fileManager fileExistsAtPath:path]){
+        // ファイルの属性をチェック
+        NSDictionary* attr = [fileManager attributesOfItemAtPath:path error:nil];
+        NSDate* date = [attr objectForKey:NSFileModificationDate];
+        NSDate* now = [NSDate dateWithTimeIntervalSinceNow:0.0f];
+        // 更新日時から一定期間以上経過していなければ終了
+        NSTimeInterval interval = [now timeIntervalSinceDate:date];
+        //if(interval < (60*60)){     // 1h
+        if(interval < 60){        // 1m
+            return;
+        }
+    }
+    // ファイルが存在しない場合とファイルが古い場合はここにくる。サムネイルを読み込む。
+    [self loadThumbnail];
+}
+// thumbnailのファイルのパス
+- (NSString *)thumbnailPath {
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES);
+    NSString *documentsDirectory = [paths objectAtIndex:0];
+    //NSString *appendix = [NSString stringWithFormat:@"blog_thumbnail/%@", blogIdString];
+    NSString *urlString = (NSString*)CFBridgingRelease(CFURLCreateStringByAddingPercentEscapes(
+                              kCFAllocatorDefault, (CFStringRef)self.url, NULL, (CFStringRef)@"!*'();:@&=+$,/?%#[]", kCFStringEncodingUTF8));
+    NSString *appendix = [NSString stringWithFormat:@"%@.png", urlString];
+    NSString *path = [documentsDirectory stringByAppendingPathComponent:appendix];
+    return path;
+}
+
+// サムネイル読み込み開始
+-(void)loadThumbnail {
+    // webViewを生成してブログURLを読み込む。
+    NSString *urlString = [NSString stringWithFormat:@"http://%@",self.url];
+    NSURL *url = [NSURL URLWithString:urlString];
+    NSURLRequest *request = [NSURLRequest requestWithURL:url];
+    CGFloat len = 1024.0f;
+    _webView = [[UIWebView alloc]initWithFrame:CGRectMake(-1*len, -1*len, len, len)];
+    _webView.delegate = (id)self;
+    _webViewLoadingCount = 0;
+    [_webView loadRequest:request];
+    _webView.scalesPageToFit = YES;
+}
+// サムネイル読み込み完了
+- (void)renderThumbnail {
+    // webViewに表示されているブログ画面をUIImageにして保持
+    UIGraphicsBeginImageContext(_webView.bounds.size);
+    [_webView.layer renderInContext:UIGraphicsGetCurrentContext()];
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    self.thumbnail = image;
+    // ファイルに保存
+    [self storeThumbnail:image];
+    // 更新完了の通知
+    NSDictionary *info = [NSDictionary dictionaryWithObject:self forKey:@"blog"];
+	[[NSNotificationCenter defaultCenter] postNotificationName:BlogThumbnailUpdatedNotification object:nil userInfo:info];
+    // webViewの後始末
+    [_webView removeFromSuperview];
+    _webView.delegate = nil;
+}
+// サムネイルをファイルに保存
+- (void)storeThumbnail:(UIImage *)image {
+    NSData *data = [[NSData alloc] initWithData:UIImagePNGRepresentation(image)];
+    NSString *path = [self thumbnailPath];
+    [data writeToFile:path atomically:NO];
+}
+
+// webViewのdelegateメソッド(読み込み完了の判定)
+- (void)webViewDidStartLoad:(UIWebView *)webView {
+    _webViewLoadingCount++;
+}
+- (void)webView:(UIWebView *)webView didFailLoadWithError:(NSError *)error {
+    _webViewLoadingCount--;
+    // 更新エラーの通知
+    NSDictionary *info = [NSDictionary dictionaryWithObject:self forKey:@"blog"];
+	[[NSNotificationCenter defaultCenter] postNotificationName:BlogThumbnailUpdateErrorNotification object:nil userInfo:info];
+}
+- (void)webViewDidFinishLoad:(UIWebView *)webView {
+    _webViewLoadingCount--;
+    if(_webViewLoadingCount > 0){ return; }
+    [self performSelector:@selector(renderThumbnail) withObject:nil afterDelay:2.0];
+}
+
 
 @end

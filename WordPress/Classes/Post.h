@@ -7,7 +7,9 @@
 
 #import <CoreData/CoreData.h>
 #import "WordPressAppDelegate.h"
-#import "Category.h"
+//#import "Category.h"
+#import "Taxonomy.h"
+#import "Term.h"
 #import "Coordinate.h"
 #import "AbstractPost.h"
 #import "Media.h"
@@ -25,6 +27,7 @@
 @property (nonatomic, strong) NSString * postFormat;
 @property (nonatomic, strong) NSString * postFormatText;
 @property (nonatomic, strong) NSMutableSet * categories;
+@property (nonatomic, strong) NSMutableSet * terms;
 @property (nonatomic, strong) NSString *featuredImageURL;
 
 /**
@@ -43,11 +46,17 @@
 - (NSString *)categoriesText;
 
 /**
+ Returns tags as a comma-separated list
+ */
+- (NSString *)tagsText;
+
+/**
  Set the categories for a post
  
  @param categoryNames a `NSArray` with the names of the categories for this post. If a given category name doesn't exist it's ignored.
  */
-- (void)setCategoriesFromNames:(NSArray *)categoryNames;
+//- (void)setCategoriesFromNames:(NSArray *)categoryNames;
+- (void)setTermsFromObjects:(NSArray *)objects;
 
 ///---------------------------------
 /// @name Creating and finding posts

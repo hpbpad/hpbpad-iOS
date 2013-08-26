@@ -12,6 +12,7 @@
 
 @synthesize postReaderViewController;
 @synthesize anyMorePosts, selectedIndexPath, drafts;
+@synthesize postList;
 //@synthesize resultsController;
 
 #pragma mark -
@@ -148,7 +149,8 @@
 }
 
 - (void)loadMoreWithSuccess:(void (^)())success failure:(void (^)(NSError *))failure {
-    [self.blog syncPostsWithSuccess:success failure:failure loadMore:YES];
+    //[self.blog syncPostsWithSuccess:success failure:failure loadMore:YES];
+    [self.postList syncPostsWithSuccess:success failure:failure loadMore:YES];
 }
 
 #pragma mark - DetailViewDelegate
@@ -172,6 +174,8 @@
 }
 
 - (void)configureCell:(PostTableViewCell *)cell atIndexPath:(NSIndexPath *)indexPath {
+    if(cell == nil){ return; }
+    
     AbstractPost *apost = (AbstractPost*) [self.resultsController objectAtIndexPath:indexPath];
     cell.post = apost;
 	if (cell.post.remoteStatus == AbstractPostRemoteStatusPushing) {
@@ -258,9 +262,12 @@
 - (void)showAddPostView {
     [WPMobileStats trackEventForWPCom:StatsEventPostsClickedNewPost];
 
+    NSLog([self.postList.postType valueForKey:@"name"]);
+    
     if (IS_IPAD)
         [self resetView];
     Post *post = [Post newDraftForBlog:self.blog];
+    post.postType = [self.postList.postType valueForKey:@"name"];
     EditPostViewController *editPostViewController = [[EditPostViewController alloc] initWithPost:[post createRevision]];
     UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:editPostViewController];
     navController.modalPresentationStyle = UIModalPresentationPageSheet;
@@ -347,7 +354,8 @@
 - (NSFetchRequest *)fetchRequest {
     NSFetchRequest *fetchRequest = [[NSFetchRequest alloc] init];
     [fetchRequest setEntity:[NSEntityDescription entityForName:[self entityName] inManagedObjectContext:self.blog.managedObjectContext]];
-    [fetchRequest setPredicate:[NSPredicate predicateWithFormat:@"(blog == %@) && (original == nil)", self.blog]];
+    //[fetchRequest setPredicate:[NSPredicate predicateWithFormat:@"(blog == %@) && (original == nil)", self.blog]];
+    [fetchRequest setPredicate:[NSPredicate predicateWithFormat:@"(blog == %@) && (postType = %@) && (original == nil)", self.blog, [self.postList.postType valueForKey:@"name"]]];
     NSSortDescriptor *sortDescriptorLocal = [[NSSortDescriptor alloc] initWithKey:@"remoteStatusNumber" ascending:YES];
     NSSortDescriptor *sortDescriptorDate = [[NSSortDescriptor alloc] initWithKey:@"date_created_gmt" ascending:NO];
     NSArray *sortDescriptors = [[NSArray alloc] initWithObjects:sortDescriptorLocal, sortDescriptorDate, nil];
@@ -365,7 +373,8 @@
     if (userInteraction) {
         [self.blog syncBlogPostsWithSuccess:success failure:failure];
     } else {
-        [self.blog syncPostsWithSuccess:success failure:failure loadMore:NO];
+        //[self.blog syncPostsWithSuccess:success failure:failure loadMore:NO];
+        [self.postList syncPostsWithSuccess:success failure:failure loadMore:NO];
     }
 }
 
@@ -398,6 +407,33 @@
 
 - (BOOL)userCanCreateEntity {
 	return YES;
+}
+
+- (void) setPostsWithIndex:(NSNumber *)index {
+    if ([index intValue]<0) { return; }
+    //NSArray *lists = [self.blog.postLists allValues];
+    NSArray *lists = self.blog.postLists;
+    self.postList = [lists objectAtIndex:[index intValue]];
+    self.title = [self.postList.postType valueForKey:@"label"];
+    
+    if( self.resultsController ){
+        [self setResultsControllerNil];
+    }
+    [self.tableView reloadData];
+    
+    WordPressAppDelegate *appDelegate = [WordPressAppDelegate sharedWordPressApplicationDelegate];
+    if ( appDelegate.connectionAvailable == YES && [self.resultsController.fetchedObjects count] == 0 && ![self isSyncing] ) {
+        [self simulatePullToRefresh];
+    }
+    
+    [self configureNoResultsView];
+}
+
+- (NSString *)resultsControllerCacheName {
+	NSString *original = [super resultsControllerCacheName];
+    NSString *postTypeName = [self.postList.postType valueForKey:@"name"];
+    NSString *cacheName = [NSString stringWithFormat:@"%@-%@", original, postTypeName];
+	return cacheName;
 }
 
 

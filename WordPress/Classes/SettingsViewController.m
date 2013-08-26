@@ -20,7 +20,7 @@
     - Video API
     - Video Quality
     - Video Content
- - Sounds 
+ - Sounds
     - Mute Sounds
  - Info
     - Version
@@ -44,10 +44,12 @@
 #import "GeneralWalkthroughViewController.h"
 #import "WPAccount.h"
 
+#import "AddSiteViewController.h"
+
 typedef enum {
     SettingsSectionBlogs = 0,
     SettingsSectionBlogsAdd,
-    SettingsSectionWpcom,
+    //SettingsSectionWpcom,
     SettingsSectionNotifications,
     SettingsSectionMedia,
     SettingsSectionSounds,
@@ -89,13 +91,13 @@ typedef enum {
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"Close", @"") style:UIBarButtonItemStyleBordered target:self action:@selector(dismiss)];
     [[NSNotificationCenter defaultCenter] addObserverForName:WordPressComApiDidLoginNotification object:nil queue:nil usingBlock:^(NSNotification *note) {
         NSMutableIndexSet *sections = [NSMutableIndexSet indexSet];
-        [sections addIndex:SettingsSectionWpcom];
+        //[sections addIndex:SettingsSectionWpcom];
         [sections addIndex:SettingsSectionNotifications];
         [self.tableView reloadSections:sections withRowAnimation:UITableViewRowAnimationFade];
     }];
     [[NSNotificationCenter defaultCenter] addObserverForName:WordPressComApiDidLogoutNotification object:nil queue:nil usingBlock:^(NSNotification *note) {
         NSMutableIndexSet *sections = [NSMutableIndexSet indexSet];
-        [sections addIndex:SettingsSectionWpcom];
+        //[sections addIndex:SettingsSectionWpcom];
         [sections addIndex:SettingsSectionNotifications];
         [self.tableView reloadSections:sections withRowAnimation:UITableViewRowAnimationFade];
     }];
@@ -240,8 +242,8 @@ typedef enum {
         case SettingsSectionBlogsAdd:
             return 1;
             
-        case SettingsSectionWpcom:
-            return ([WordPressComApi sharedApi].username && [[WordPressComApi sharedApi] hasCredentials]) ? 2 : 1;
+        //case SettingsSectionWpcom:
+            //return ([WordPressComApi sharedApi].username && [[WordPressComApi sharedApi] hasCredentials]) ? 2 : 1;
             
         case SettingsSectionMedia:
             return [mediaSettingsArray count];
@@ -275,8 +277,8 @@ typedef enum {
     if (section == SettingsSectionBlogs) {
         return NSLocalizedString(@"Blogs", @"Title label for the user blogs in the app settings");
         
-    } else if (section == SettingsSectionWpcom) {
-        return NSLocalizedString(@"WordPress.com", @"");
+    //} else if (section == SettingsSectionWpcom) {
+        //return NSLocalizedString(@"WordPress.com", @"");
         
     } else if (section == SettingsSectionBlogsAdd) {
         return nil;
@@ -325,22 +327,22 @@ typedef enum {
         cell.selectionStyle = UITableViewCellSelectionStyleBlue;
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
         
-    } else if (indexPath.section == SettingsSectionWpcom) {
-        if ([[WordPressComApi sharedApi] hasCredentials]) {
-            if (indexPath.row == 0) {
-                cell.textLabel.text = NSLocalizedString(@"Username:", @"");
-                cell.detailTextLabel.text = [WordPressComApi sharedApi].username;
-                cell.detailTextLabel.textColor = [UIColor UIColorFromHex:0x888888];
-                cell.selectionStyle = UITableViewCellSelectionStyleNone;
-            } else {
-                cell.textLabel.textAlignment = UITextAlignmentCenter;
-                cell.textLabel.text = NSLocalizedString(@"Sign Out", @"Sign out from WordPress.com");
-            }
-        } else {
-            cell.textLabel.textAlignment = UITextAlignmentCenter;
-            cell.textLabel.text = NSLocalizedString(@"Sign In", @"Sign in to WordPress.com");
-            cell.selectionStyle = UITableViewCellSelectionStyleBlue;
-        }
+//    } else if (indexPath.section == SettingsSectionWpcom) {
+//        if ([[WordPressComApi sharedApi] hasCredentials]) {
+//            if (indexPath.row == 0) {
+//                cell.textLabel.text = NSLocalizedString(@"Username:", @"");
+//                cell.detailTextLabel.text = [WordPressComApi sharedApi].username;
+//                cell.detailTextLabel.textColor = [UIColor UIColorFromHex:0x888888];
+//                cell.selectionStyle = UITableViewCellSelectionStyleNone;
+//            } else {
+//                cell.textLabel.textAlignment = UITextAlignmentCenter;
+//                cell.textLabel.text = NSLocalizedString(@"Sign Out", @"Sign out from WordPress.com");
+//            }
+//        } else {
+//            cell.textLabel.textAlignment = UITextAlignmentCenter;
+//            cell.textLabel.text = NSLocalizedString(@"Sign In", @"Sign in to WordPress.com");
+//            cell.selectionStyle = UITableViewCellSelectionStyleBlue;
+//        }
         
     } else if (indexPath.section == SettingsSectionMedia){
         cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
@@ -406,15 +408,15 @@ typedef enum {
             cellStyle = UITableViewCellStyleSubtitle;
             break;
             
-        case SettingsSectionWpcom:
-            if ([[WordPressComApi sharedApi] hasCredentials] && indexPath.row == 0) {
-                cellIdentifier = @"WpcomUsernameCell";
-                cellStyle = UITableViewCellStyleValue1;
-            } else {
-                cellIdentifier = @"WpcomCell";
-                cellStyle = UITableViewCellStyleDefault;
-            }
-            break;
+//        case SettingsSectionWpcom:
+//            if ([[WordPressComApi sharedApi] hasCredentials] && indexPath.row == 0) {
+//                cellIdentifier = @"WpcomUsernameCell";
+//                cellStyle = UITableViewCellStyleValue1;
+//            } else {
+//                cellIdentifier = @"WpcomCell";
+//                cellStyle = UITableViewCellStyleDefault;
+//            }
+//            break;
             
         case SettingsSectionMedia:
             cellIdentifier = @"Media";
@@ -490,36 +492,40 @@ typedef enum {
         [self.navigationController pushViewController:editSiteViewController animated:YES];
 
     } else if (indexPath.section == SettingsSectionBlogsAdd) {
-        [WPMobileStats trackEventForWPCom:StatsEventSettingsClickedAddBlog];
-
-        WelcomeViewController *welcomeViewController;
-        welcomeViewController = [[WelcomeViewController alloc] initWithNibName:@"WelcomeViewController" bundle:nil]; 
-        welcomeViewController.title = NSLocalizedString(@"Add a Blog", @"");
-        [self.navigationController pushViewController:welcomeViewController animated:YES];
+//        [WPMobileStats trackEventForWPCom:StatsEventSettingsClickedAddBlog];
+//
+//        WelcomeViewController *welcomeViewController;
+//        welcomeViewController = [[WelcomeViewController alloc] initWithNibName:@"WelcomeViewController" bundle:nil]; 
+//        welcomeViewController.title = NSLocalizedString(@"Add a Blog", @"");
+//        [self.navigationController pushViewController:welcomeViewController animated:YES];
         
-    } else if (indexPath.section == SettingsSectionWpcom) {
-        if ([[WordPressComApi sharedApi] hasCredentials]) {
-            if (indexPath.row == 1) {
-                [WPMobileStats trackEventForWPCom:StatsEventSettingsClickedSignOutOfDotCom];
-
-                // Present the Sign out ActionSheet
-                NSString *signOutTitle = NSLocalizedString(@"You are logged in as %@", @"");
-                signOutTitle = [NSString stringWithFormat:signOutTitle, [WordPressComApi sharedApi].username];
-                UIActionSheet *actionSheet;
-                actionSheet = [[UIActionSheet alloc] initWithTitle:signOutTitle 
-                                                          delegate:self 
-                                                 cancelButtonTitle:NSLocalizedString(@"Cancel", @"")
-                                            destructiveButtonTitle:NSLocalizedString(@"Sign Out", @"")otherButtonTitles:nil, nil ];
-                actionSheet.actionSheetStyle = UIActionSheetStyleDefault;
-                [actionSheet showInView:self.view];
-            }
-        } else {
-            [WPMobileStats trackEventForWPCom:StatsEventSettingsClickedSignIntoDotCom];
-            
-            WPcomLoginViewController *loginViewController = [[WPcomLoginViewController alloc] initWithStyle:UITableViewStyleGrouped];
-            loginViewController.delegate = self;
-            [self.navigationController pushViewController:loginViewController animated:YES];
-        }
+        [WPMobileStats trackEventForWPCom:StatsEventWelcomeViewControllerClickedAddSelfHostedBlog];
+        AddSiteViewController *addSiteView = [[AddSiteViewController alloc] initWithNibName:nil bundle:nil];
+        [self.navigationController pushViewController:addSiteView animated:YES];
+        
+//    } else if (indexPath.section == SettingsSectionWpcom) {
+//        if ([[WordPressComApi sharedApi] hasCredentials]) {
+//            if (indexPath.row == 1) {
+//                [WPMobileStats trackEventForWPCom:StatsEventSettingsClickedSignOutOfDotCom];
+//
+//                // Present the Sign out ActionSheet
+//                NSString *signOutTitle = NSLocalizedString(@"You are logged in as %@", @"");
+//                signOutTitle = [NSString stringWithFormat:signOutTitle, [WordPressComApi sharedApi].username];
+//                UIActionSheet *actionSheet;
+//                actionSheet = [[UIActionSheet alloc] initWithTitle:signOutTitle 
+//                                                          delegate:self 
+//                                                 cancelButtonTitle:NSLocalizedString(@"Cancel", @"")
+//                                            destructiveButtonTitle:NSLocalizedString(@"Sign Out", @"")otherButtonTitles:nil, nil ];
+//                actionSheet.actionSheetStyle = UIActionSheetStyleDefault;
+//                [actionSheet showInView:self.view];
+//            }
+//        } else {
+//            [WPMobileStats trackEventForWPCom:StatsEventSettingsClickedSignIntoDotCom];
+//            
+//            WPcomLoginViewController *loginViewController = [[WPcomLoginViewController alloc] initWithStyle:UITableViewStyleGrouped];
+//            loginViewController.delegate = self;
+//            [self.navigationController pushViewController:loginViewController animated:YES];
+//        }
         
     } else if (indexPath.section == SettingsSectionMedia) {
         if (indexPath.row == 0) {
@@ -631,7 +637,7 @@ typedef enum {
 #pragma mark WPComLoginViewControllerDelegate
 
 - (void)loginController:(WPcomLoginViewController *)loginController didAuthenticateWithAccount:(WPAccount *)account {
-    [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:SettingsSectionWpcom] withRowAnimation:UITableViewRowAnimationFade];
+    //[self.tableView reloadSections:[NSIndexSet indexSetWithIndex:SettingsSectionWpcom] withRowAnimation:UITableViewRowAnimationFade];
     [self.navigationController popToRootViewControllerAnimated:YES];
     [self checkCloseButton];
 }
@@ -652,7 +658,7 @@ typedef enum {
         // Sign out
 		[WPAccount removeDefaultWordPressComAccount];
         [[WordPressComApi sharedApi] signOut];
-        [self.tableView reloadSections:[NSIndexSet indexSetWithIndex:SettingsSectionWpcom] withRowAnimation:UITableViewRowAnimationFade];
+        //[self.tableView reloadSections:[NSIndexSet indexSetWithIndex:SettingsSectionWpcom] withRowAnimation:UITableViewRowAnimationFade];
         [self checkCloseButton];
     }
 }

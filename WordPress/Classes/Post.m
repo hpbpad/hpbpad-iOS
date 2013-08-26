@@ -48,6 +48,7 @@
 
 @dynamic geolocation, tags, postFormat;
 @dynamic categories;
+@dynamic terms;
 @synthesize specialType, featuredImageURL;
 
 + (Post *)newPostForBlog:(Blog *)blog {
@@ -100,47 +101,48 @@
 
 
 - (void )updateFromDictionary:(NSDictionary *)postInfo {
-    self.postTitle      = [postInfo objectForKey:@"title"];
-	//keep attention: getPosts and getPost returning IDs in different types
-	if ([[postInfo objectForKey:@"postid"] isKindOfClass:[NSString class]]) {
-	  self.postID         = [[postInfo objectForKey:@"postid"] numericValue];
+    self.postTitle      = [postInfo objectForKey:@"post_title"];
+    self.postType      = [postInfo objectForKey:@"post_type"];
+	if ([[postInfo objectForKey:@"post_id"] isKindOfClass:[NSString class]]) {
+	  self.postID         = [[postInfo objectForKey:@"post_id"] numericValue];
 	} else {
-	  self.postID         = [postInfo objectForKey:@"postid"];
+	  self.postID         = [postInfo objectForKey:@"post_id"];
 	}
       
-	self.content        = [postInfo objectForKey:@"description"];
-    if ([[postInfo objectForKey:@"date_created_gmt"] isKindOfClass:[NSDate class]]) {
-        self.date_created_gmt    = [postInfo objectForKey:@"date_created_gmt"];
+	self.content        = [postInfo objectForKey:@"post_content"];
+    if ([[postInfo objectForKey:@"post_date_gmt"] isKindOfClass:[NSDate class]]) {
+        self.date_created_gmt    = [postInfo objectForKey:@"post_date_gmt"];
     } else {
-        self.dateCreated = [postInfo objectForKey:@"dateCreated"];
+        self.dateCreated = [postInfo objectForKey:@"post_date"];
     }
     self.status         = [postInfo objectForKey:@"post_status"];
-    NSString *password = [postInfo objectForKey:@"wp_password"];
+    NSString *password = [postInfo objectForKey:@"post_password"];
     if ([password isEqualToString:@""]) {
         password = nil;
     }
     self.password = password;
-    self.tags           = [postInfo objectForKey:@"mt_keywords"];
-	self.permaLink      = [postInfo objectForKey:@"permaLink"];
-	self.mt_excerpt		= [postInfo objectForKey:@"mt_excerpt"];
-	self.mt_text_more	= [postInfo objectForKey:@"mt_text_more"];
+	self.permaLink      = [postInfo objectForKey:@"link"];
+	self.mt_excerpt		= [postInfo objectForKey:@"post_excerpt"];
     NSString *wp_more_text = [postInfo objectForKey:@"wp_more_text"];
     if ([wp_more_text length] > 0) {
-        wp_more_text = [@" " stringByAppendingString:wp_more_text]; // Give us a little padding.
+        wp_more_text = [@" " stringByAppendingFormat:wp_more_text]; // Give us a little padding.
     }
     if (self.mt_text_more && self.mt_text_more.length > 0) {
         self.content = [NSString stringWithFormat:@"%@\n\n<!--more%@-->\n\n%@", self.content, wp_more_text, self.mt_text_more];
         self.mt_text_more = nil;
     }
 	self.wp_slug		= [postInfo objectForKey:@"wp_slug"];
-	self.post_thumbnail = [[postInfo objectForKey:@"wp_post_thumbnail"] numericValue];
-    if (self.post_thumbnail != nil && [self.post_thumbnail intValue] == 0)
-        self.post_thumbnail = nil;
-	self.postFormat		= [postInfo objectForKey:@"wp_post_format"];
+	self.post_thumbnail = nil;
+    if ([[postInfo objectForKey:@"post_thumbnail"] count] > 0){
+        self.post_thumbnail = [[[postInfo objectForKey:@"post_thumbnail"] objectForKey:@"attachment_id"] numericValue];
+        //TODO: 配列からattachment_idを取り出す
+        if( self.post_thumbnail == 0) self.post_thumbnail = nil;
+    }
+	self.postFormat		= [postInfo objectForKey:@"post_format"];
 	
     self.remoteStatus   = AbstractPostRemoteStatusSync;
-    if ([postInfo objectForKey:@"categories"]) {
-        [self setCategoriesFromNames:[postInfo objectForKey:@"categories"]];
+    if ([[postInfo objectForKey:@"terms"] count] > 0) {
+        [self setTermsFromObjects:[postInfo objectForKey:@"terms"]];
     }
 
 	self.latitudeID = nil;
@@ -187,7 +189,18 @@
 }
 
 - (NSString *)categoriesText {
-    return [[[self.categories valueForKey:@"categoryName"] allObjects] componentsJoinedByString:@", "];
+    //return [[[self.categories valueForKey:@"categoryName"] allObjects] componentsJoinedByString:@", "];
+    return [[[self.terms valueForKey:@"name"] allObjects] componentsJoinedByString:@", "];
+}
+
+- (NSString *)tagsText {
+    NSPredicate * predicate = [NSPredicate predicateWithFormat:@"taxonomy = %@", @"post_tag"];
+    
+    NSArray *array = [[self.terms allObjects] filteredArrayUsingPredicate:predicate];
+    NSString *string = [[array valueForKeyPath:@"name"] componentsJoinedByString:@","];
+    return string;
+    
+    //return [[[[self.terms valueForKey:@"name"] allObjects] filteredArrayUsingPredicate:predicate] componentsJoinedByString:@","];
 }
 
 - (NSString *)postFormatText {
@@ -213,24 +226,30 @@
     self.postFormat = format;
 }
 
-- (void)setCategoriesFromNames:(NSArray *)categoryNames {
-    [self.categories removeAllObjects];
-	NSMutableSet *categories = nil;
-	
-    for (NSString *categoryName in categoryNames) {
-        NSSet *results = [self.blog.categories filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"categoryName = %@", categoryName]];
+- (void)setTermsFromObjects:(NSArray *)objects {
+	NSMutableSet *terms = [NSMutableSet set];
+    [self.terms removeAllObjects];
+    NSArray *ignoreTaxonomies = [NSArray arrayWithObjects:@"post_format",@"post_tag",nil];
+    NSArray *array = [objects filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"NOT (taxonomy IN %@)", ignoreTaxonomies]];
+    for (Term *term in array) {
+        NSSet *results = [self.blog.terms filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"name like %@", [term valueForKey:@"name"]]];
         if (results && (results.count > 0)) {
-			if(categories == nil) {
-				categories = [NSMutableSet setWithSet:results];
-			} else {
-				[categories unionSet:results];
-			}
+            [terms unionSet:results];
 		}
     }
-	
-	if (categories && (categories.count > 0)) {
-		self.categories = categories;
+	if (terms && ([terms count] > 0)) {
+		self.terms = terms;
 	}
+    
+    // post_tagは特別扱い。他termとは異なり、カンマ区切りの文字列として持つ。
+    // 本文から自動生成するツールなどにより、数が多くなる場合があるため。
+    NSArray *tagArray = [objects filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"taxonomy = %@", @"post_tag"]];
+    NSArray *tagNames = [tagArray valueForKeyPath:@"name"];
+    if(tagNames && [tagNames count] > 0){
+		self.tags = [tagNames componentsJoinedByString:@","];
+    } else {
+		self.tags = @"";
+    }
 }
 
 - (BOOL)hasChanges {
@@ -245,6 +264,8 @@
         return YES;
 
     if (![self.categories isEqual:((Post *)self.original).categories]) return YES;
+    
+    if (![self.terms isEqual:((Post *)self.original).terms]) return YES;
     
 	if ((self.geolocation != ((Post *)self.original).geolocation)
 		 && (![self.geolocation isEqual:((Post *)self.original).geolocation]) )
@@ -317,16 +338,30 @@
     NSMutableDictionary *postParams = [NSMutableDictionary dictionaryWithDictionary:[super XMLRPCDictionary]];
     
     [postParams setValueIfNotNil:self.postFormat forKey:@"wp_post_format"];
-    [postParams setValueIfNotNil:self.tags forKey:@"mt_keywords"];
-
-    if ([self valueForKey:@"categories"] != nil) {
-        NSMutableSet *categories = [self mutableSetValueForKey:@"categories"];
-        NSMutableArray *categoryNames = [NSMutableArray arrayWithCapacity:[categories count]];
-        for (Category *cat in categories) {
-            [categoryNames addObject:cat.categoryName];
-        }
-        [postParams setObject:categoryNames forKey:@"categories"];
+    
+    //[postParams setValueIfNotNil:self.tags forKey:@"mt_keywords"];
+    if(self.tags && [self.tags length] > 0){
+        NSArray *tagsNames = [self.tags componentsSeparatedByString:@","];
+        NSDictionary *tags = [NSDictionary dictionaryWithObject:tagsNames forKey:@"post_tag"];
+        [postParams setValueIfNotNil:tags forKey:@"terms_names"];
     }
+    
+    if ([self valueForKey:@"terms"] != nil) {
+        NSMutableDictionary *terms = [[NSMutableDictionary alloc] init];
+        for (NSString *taxonomyName in [[self.blog taxonomiesOfPostType:self.postType] valueForKeyPath:@"name"] ) {
+            if([taxonomyName isEqualToString:@"post_tag"]){ continue; }
+            [terms setValue:[[NSMutableArray alloc] init] forKey:taxonomyName];
+        }
+        for (Term *term in self.terms) {
+            NSMutableArray *array = [terms objectForKey:term.taxonomy];
+                [array addObject:term.termID];
+        }
+        [postParams setObject:terms forKey:@"terms"];
+    }
+    
+    // TODO: open固定/closed固定/選択できる/デフォルトに任せる?
+    [postParams setObject:@"open" forKey:@"comment_status"];
+    
     Coordinate *c = [self valueForKey:@"geolocation"];
     // Warning
     // XMLRPCEncoder sends floats with an integer type (i4), so WordPress ignores the decimal part
@@ -383,49 +418,55 @@
     NSArray *parameters = [self.blog getXMLRPCArgsWithExtra:xmlrpcDictionary];
     self.remoteStatus = AbstractPostRemoteStatusPushing;
 
-    NSMutableURLRequest *request = [self.blog.api requestWithMethod:@"metaWeblog.newPost"
-                                                  parameters:parameters];
+    //NSMutableURLRequest *request = [self.blog.api requestWithMethod:@"metaWeblog.newPost" parameters:parameters];
+    NSMutableURLRequest *request = [self.blog.api requestWithMethod:@"wp.newPost" parameters:parameters];
+    
     if (self.specialType != nil) {
         [request addValue:self.specialType forHTTPHeaderField:@"WP-Quick-Post"];
     }
     AFHTTPRequestOperation *operation = [self.blog.api HTTPRequestOperationWithRequest:request
-                                                                               success:^(AFHTTPRequestOperation *operation, id responseObject) {
-                                                                                   if ([self isDeleted] || self.managedObjectContext == nil)
-                                                                                       return;
+        success:^(AFHTTPRequestOperation *operation, id responseObject) {
+            
+            if ([self isDeleted] || self.managedObjectContext == nil){
+                return;
+            }
 
-                                                                                   if ([responseObject respondsToSelector:@selector(numericValue)]) {
-                                                                                       self.postID = [responseObject numericValue];
-                                                                                       self.remoteStatus = AbstractPostRemoteStatusSync;
-                                                                                       if (!self.date_created_gmt) {
-                                                                                           // Set the temporary date until we get it from the server so it sorts properly on the list
-                                                                                           self.date_created_gmt = [DateUtils localDateToGMTDate:[NSDate date]];
-                                                                                       }
-                                                                                       [self save];
-                                                                                       [self getPostWithSuccess:success failure:failure];
-                                                                                       [[NSNotificationCenter defaultCenter] postNotificationName:@"PostUploaded" object:self];
-                                                                                   } else if (failure) {
-                                                                                       self.remoteStatus = AbstractPostRemoteStatusFailed;
-                                                                                       NSDictionary *userInfo = [NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"Invalid value returned for new post: %@", responseObject] forKey:NSLocalizedDescriptionKey];
-                                                                                       NSError *error = [NSError errorWithDomain:@"org.wordpress.iphone" code:0 userInfo:userInfo];
-                                                                                       failure(error);
-                                                                                       [[NSNotificationCenter defaultCenter] postNotificationName:@"PostUploadFailed" object:self];
-                                                                                   }
+            if ([responseObject respondsToSelector:@selector(numericValue)]) {
+                self.postID = [responseObject numericValue];
+                self.remoteStatus = AbstractPostRemoteStatusSync;
+                // Set the temporary date until we get it from the server so it sorts properly on the list
+                self.date_created_gmt = [DateUtils localDateToGMTDate:[NSDate date]];
+                [self save];
+                [self getPostWithSuccess:success failure:failure];
+                [[NSNotificationCenter defaultCenter] postNotificationName:@"PostUploaded" object:self];
+            } else if (failure) {
+                self.remoteStatus = AbstractPostRemoteStatusFailed;
+                NSDictionary *userInfo = [NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"Invalid value returned for new post: %@", responseObject] forKey:NSLocalizedDescriptionKey];
+                NSError *error = [NSError errorWithDomain:@"org.wordpress.iphone" code:0 userInfo:userInfo];
+                failure(error);
+                [[NSNotificationCenter defaultCenter] postNotificationName:@"PostUploadFailed" object:self];
+            }
 
-                                                                               } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-                                                                                   if ([self isDeleted] || self.managedObjectContext == nil)
-                                                                                       return;
+    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
 
-                                                                                   self.remoteStatus = AbstractPostRemoteStatusFailed;
-                                                                                   if (failure) failure(error);
-                                                                                   [[NSNotificationCenter defaultCenter] postNotificationName:@"PostUploadFailed" object:self];
-                                                                               }];
+            if ([self isDeleted] || self.managedObjectContext == nil) {
+                return;
+			}
+
+            self.remoteStatus = AbstractPostRemoteStatusFailed;
+            if (failure) failure(error);
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"PostUploadFailed" object:self];
+    }];
+
     [self.blog.api enqueueHTTPRequestOperation:operation];
 }
 
 - (void)getPostWithSuccess:(void (^)())success failure:(void (^)(NSError *error))failure {
     WPFLogMethod();
-    NSArray *parameters = [NSArray arrayWithObjects:self.postID, self.blog.username, self.blog.password, nil];
-    [self.blog.api callMethod:@"metaWeblog.getPost"
+    //NSArray *parameters = [NSArray arrayWithObjects:self.postID, self.blog.username, [self.blog fetchPassword], nil];
+    //[self.blog.api callMethod:@"metaWeblog.getPost"
+    NSArray *parameters = [NSArray arrayWithObjects:self.blog.blogID,  self.blog.username, self.blog.password, self.postID, nil];
+    [self.blog.api callMethod:@"wp.getPost"
                    parameters:parameters
                       success:^(AFHTTPRequestOperation *operation, id responseObject) {
                           if ([self isDeleted] || self.managedObjectContext == nil)
@@ -452,15 +493,19 @@
         return;
     }
 
-    NSArray *parameters = [NSArray arrayWithObjects:self.postID, self.blog.username, self.blog.password, [self XMLRPCDictionary], nil];
+    //NSArray *parameters = [NSArray arrayWithObjects:self.postID, self.blog.username, [self.blog fetchPassword], [self XMLRPCDictionary], nil];
+    NSArray *parameters = [NSArray arrayWithObjects:self.blog.blogID, self.blog.username, self.blog.password, self.postID, [self XMLRPCDictionary], nil];
     self.remoteStatus = AbstractPostRemoteStatusPushing;
     
     if( self.isFeaturedImageChanged == NO ) {
+        /*
         NSMutableDictionary *xmlrpcDictionary = (NSMutableDictionary*) [parameters objectAtIndex:3] ;
-        [xmlrpcDictionary removeObjectForKey:@"wp_post_thumbnail"];
+        [xmlrpcDictionary removeObjectForKey:@"post_thumbnail"];
+        */
     }
     
-    [self.blog.api callMethod:@"metaWeblog.editPost"
+    //[self.blog.api callMethod:@"metaWeblog.editPost"
+    [self.blog.api callMethod:@"wp.editPost"
                    parameters:parameters
                       success:^(AFHTTPRequestOperation *operation, id responseObject) {
                           if ([self isDeleted] || self.managedObjectContext == nil)
@@ -484,8 +529,9 @@
     WPFLogMethod();
     BOOL remote = [self hasRemote];
     if (remote) {
-        NSArray *parameters = [NSArray arrayWithObjects:@"unused", self.postID, self.blog.username, self.blog.password, nil];
-        [self.blog.api callMethod:@"metaWeblog.deletePost"
+        //NSArray *parameters = [NSArray arrayWithObjects:@"unused", self.postID, self.blog.username, [self.blog fetchPassword], nil];
+        NSArray *parameters = [NSArray arrayWithObjects:self.blog.blogID, self.blog.username, self.blog.password, self.postID, nil];
+        [self.blog.api callMethod:@"wp.deletePost"
                        parameters:parameters
                           success:^(AFHTTPRequestOperation *operation, id responseObject) {
                               if (success) success();
