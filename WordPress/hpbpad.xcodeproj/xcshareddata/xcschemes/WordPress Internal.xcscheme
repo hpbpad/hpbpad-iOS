@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "1D6058900D05DD3D006BFB54"
-               BuildableName = "WordPress.app"
-               BlueprintName = "WordPress"
-               ReferencedContainer = "container:WordPress.xcodeproj">
+               BuildableName = "hpbpad.app"
+               BlueprintName = "hpbpad"
+               ReferencedContainer = "container:hpbpad.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -33,9 +33,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "E16AB92914D978240047A2E5"
-               BuildableName = "WordPressTest.octest"
-               BlueprintName = "WordPressTest"
-               ReferencedContainer = "container:WordPress.xcodeproj">
+               BuildableName = "hpbpadTest.octest"
+               BlueprintName = "hpbpadTest"
+               ReferencedContainer = "container:hpbpad.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -43,9 +43,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1D6058900D05DD3D006BFB54"
-            BuildableName = "WordPress.app"
-            BlueprintName = "WordPress"
-            ReferencedContainer = "container:WordPress.xcodeproj">
+            BuildableName = "hpbpad.app"
+            BlueprintName = "hpbpad"
+            ReferencedContainer = "container:hpbpad.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
    </TestAction>
@@ -62,9 +62,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1D6058900D05DD3D006BFB54"
-            BuildableName = "WordPress.app"
-            BlueprintName = "WordPress"
-            ReferencedContainer = "container:WordPress.xcodeproj">
+            BuildableName = "hpbpad.app"
+            BlueprintName = "hpbpad"
+            ReferencedContainer = "container:hpbpad.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>
@@ -77,7 +77,7 @@
          <EnvironmentVariable
             key = "NSZombieEnabled"
             value = "YES"
-            isEnabled = "NO">
+            isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "NSDebugEnabled"
@@ -123,9 +123,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "1D6058900D05DD3D006BFB54"
-            BuildableName = "WordPress.app"
-            BlueprintName = "WordPress"
-            ReferencedContainer = "container:WordPress.xcodeproj">
+            BuildableName = "hpbpad.app"
+            BlueprintName = "hpbpad"
+            ReferencedContainer = "container:hpbpad.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
@@ -133,7 +133,7 @@
       buildConfiguration = "Debug">
    </AnalyzeAction>
    <ArchiveAction
-      buildConfiguration = "Release"
+      buildConfiguration = "Distribution"
       revealArchiveInOrganizer = "YES">
    </ArchiveAction>
 </Scheme>

@@ -17,9 +17,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "E16AB92914D978240047A2E5"
-               BuildableName = "WordPressTest.octest"
-               BlueprintName = "WordPressTest"
-               ReferencedContainer = "container:WordPress.xcodeproj">
+               BuildableName = "hpbpadTest.octest"
+               BlueprintName = "hpbpadTest"
+               ReferencedContainer = "container:hpbpad.xcodeproj">
             </BuildableReference>
             <SkippedTests>
                <Test

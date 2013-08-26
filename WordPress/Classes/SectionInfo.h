@@ -15,6 +15,8 @@
 @property (assign) BOOL open;
 @property (strong) Blog* blog;
 @property (strong) SidebarSectionHeaderView* headerView;
+@property (strong) NSDictionary* types;
+@property NSInteger typesCount;
 
 @property (nonatomic,strong,readonly) NSMutableArray *rowHeights;
 

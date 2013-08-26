@@ -197,6 +197,7 @@
                 if ([self canEditUsernameAndURL]) {
                     urlTextField.enabled = YES;
                     urlTextField.textColor = [UIColor blackColor];
+                    urlTextField.clearButtonMode = UITextFieldViewModeAlways;
                 } else {
                     urlTextField.enabled = NO;
                     urlTextField.textColor = [UIColor darkGrayColor];
@@ -222,6 +223,7 @@
                 if ([self canEditUsernameAndURL]) {
                     usernameTextField.enabled = YES;
                     usernameTextField.textColor = [UIColor blackColor];
+                    usernameTextField.clearButtonMode = UITextFieldViewModeAlways;
                 } else {
                     usernameTextField.enabled = NO;
                     usernameTextField.textColor = [UIColor darkGrayColor];
@@ -238,6 +240,7 @@
 				passwordTextField = self.passwordCell.textField;
 				passwordTextField.placeholder = NSLocalizedString(@"WordPress password", @"");
                 [passwordTextField addTarget:self action:@selector(enableDisableSaveButton) forControlEvents:UIControlEventEditingChanged];
+                passwordTextField.clearButtonMode = UITextFieldViewModeAlways;
                 [self configureTextField:passwordTextField asPassword:YES];
 				if (password != nil) {
 					passwordTextField.text = password;

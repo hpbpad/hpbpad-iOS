@@ -68,6 +68,9 @@
         }
         createLabel.text = NSLocalizedString(@"If you want to start another blog:", @"");
     }
+    // 作成機能は削除
+    [self.createLabel setHidden:YES];
+    [self.createBlogButton setHidden:YES];
 }
 
 

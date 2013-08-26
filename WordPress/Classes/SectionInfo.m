@@ -11,13 +11,14 @@
 
 @implementation SectionInfo
 
-@synthesize open, rowHeights, blog, headerView;
+@synthesize open, rowHeights, blog, headerView, types, typesCount;
 
 - init {
 	
 	self = [super init];
 	if (self) {
 		rowHeights = [[NSMutableArray alloc] init];
+        typesCount = 0;
 	}
 	return self;
 }

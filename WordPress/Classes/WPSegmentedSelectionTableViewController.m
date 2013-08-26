@@ -31,7 +31,8 @@
         autoReturnInRadioSelectMode = YES;
         categoryIndentationLevelsDict = [[NSMutableDictionary alloc] init];
         rowTextColor = [[UIColor alloc] initWithRed:0.196 green:0.31 blue:0.522 alpha:1.0];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNewCategory:) name:WPNewCategoryCreatedAndUpdatedInBlogNotificationName object:nil];
+        //[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNewCategory:) name:WPNewCategoryCreatedAndUpdatedInBlogNotificationName object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleNewCategory:) name:WPNewTermCreatedAndUpdatedInBlogNotificationName object:nil];
     }
 
     return self;

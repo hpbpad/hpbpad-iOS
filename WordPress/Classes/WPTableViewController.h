@@ -16,5 +16,8 @@
 @property (nonatomic, strong) UITableView *tableView;
 
 - (void)promptForPassword;
+- (void)configureNoResultsView;
+- (void)setResultsControllerNil;
+- (void)simulatePullToRefresh;
 
 @end

@@ -27,6 +27,7 @@ NSTimeInterval const WPTableViewControllerRefreshTimeout = 300; // 5 minutes
 @property (nonatomic, strong) UITableViewCell *swipeCell;
 @property (nonatomic, strong) UIView *noResultsView;
 
+- (void)simulatePullToRefresh;
 - (void)enableSwipeGestureRecognizer;
 - (void)disableSwipeGestureRecognizer;
 - (void)swipe:(UISwipeGestureRecognizer *)recognizer direction:(UISwipeGestureRecognizerDirection)direction;
@@ -84,6 +85,7 @@ NSTimeInterval const WPTableViewControllerRefreshTimeout = 300; // 5 minutes
 	[self.view addSubview:self.tableView];
     
     if (_refreshHeaderView == nil) {
+		//_refreshHeaderView = [[EGORefreshTableHeaderView alloc] initWithFrame:CGRectMake(0.0f, 0.0f - self.tableView.bounds.size.height, self.view.frame.size.width, self.tableView.bounds.size.height)];
 		_refreshHeaderView = [[EGORefreshTableHeaderView alloc] initWithFrame:CGRectMake(0.0f, 0.0f - self.tableView.bounds.size.height, self.tableView.frame.size.width, self.tableView.bounds.size.height)];
 		_refreshHeaderView.delegate = self;
 		[self.tableView addSubview:_refreshHeaderView];
@@ -201,6 +203,10 @@ NSTimeInterval const WPTableViewControllerRefreshTimeout = 300; // 5 minutes
 
 
 #pragma mark - Property accessors
+
+- (void)setResultsControllerNil {
+    self.resultsController = nil;
+}
 
 - (void)setBlog:(Blog *)blog {
     if (_blog == blog) 

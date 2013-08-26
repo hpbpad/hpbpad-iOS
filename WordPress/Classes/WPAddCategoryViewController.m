@@ -3,8 +3,11 @@
 #import "WordPressAppDelegate.h"
 #import "UIBarButtonItem+Styled.h"
 
+// categoryではなく、termを新規追加するViewControllerにする。
+
 @implementation WPAddCategoryViewController
 @synthesize blog;
+@synthesize postType;
 
 #pragma mark -
 #pragma mark LifeCycle Methods
@@ -13,19 +16,25 @@
     [FileLogger log:@"%@ %@", self, NSStringFromSelector(_cmd)];
 	[super viewDidLoad];
     catTableView.sectionFooterHeight = 0.0;
+    
     saveButtonItem = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"Save", @"Save button label (saving content, ex: Post, Page, Comment, Category).") style:UIBarButtonItemStyleDone target:self action:@selector(saveAddCategory:)];
-
+    
     newCatNameField.font = [UIFont fontWithName:@"Helvetica" size:17];
     parentCatNameField.font = [UIFont fontWithName:@"Helvetica" size:17];
     parentCatNameLabel.text = NSLocalizedString(@"Parent Category", @"Placeholder to set a parent category for a new category.");
     parentCatNameField.placeholder = NSLocalizedString(@"Optional", @"Placeholder to indicate that filling out the field is optional.");
-    newCatNameField.placeholder = NSLocalizedString(@"Title", @"Title of the new Category being created.");
+    
+    [self setTaxonomyWithObject:[[self.blog taxonomiesOfPostType:self.postType] objectAtIndex:0]];
+    taxonomyNameField.font = [UIFont fontWithName:@"Helvetica" size:17];
+    taxonomyNameLabel.text = @"タクソノミー";
+    taxonomyNameField.text = [[taxonomy valueForKey:@"taxonomy"] valueForKey:@"label"];
     
     cancelButtonItem.title = NSLocalizedString(@"Cancel", @"Cancel button label.");
 
     parentCat = nil;
     //Set background to clear for iOS 4. Delete this line when we set iOS 5 as the min OS
     catTableView.backgroundColor = [UIColor clearColor];
+    taxonomyTableView.backgroundColor = [UIColor clearColor];
     self.view.backgroundColor = [UIColor colorWithPatternImage:[UIImage imageNamed:@"settings_bg"]];
 }
 
@@ -114,7 +123,8 @@
         return;
     }
     
-    if ([Category existsName:catName forBlog:self.blog withParentId:parentCat.categoryID]) {
+    //if ([Category existsName:catName forBlog:self.blog withParentId:parentCat.categoryID]) {
+    if ([Term existsName:catName forBlog:self.blog withParentId:parentCat.termID taxonomy:taxonomy.name]) {
         UIAlertView *alert2 = [[UIAlertView alloc] initWithTitle:NSLocalizedString(@"Category name already exists.", @"Error popup title to show that a category already exists.")
                                                          message:NSLocalizedString(@"There is another category with that name.", @"Error popup message to show that a category already exists.")
                                                         delegate:self cancelButtonTitle:NSLocalizedString(@"OK", @"OK button label.") otherButtonTitles:nil];
@@ -128,12 +138,21 @@
     
     [self addProgressIndicator];
     
-    [Category createCategory:catName parent:parentCat forBlog:self.blog success:^(Category *category) {
+    //[Category createCategory:catName parent:parentCat forBlog:self.blog success:^(Category *category) {
+    [Term createTerm:catName parent:parentCat taxonomy:taxonomy.name forBlog:self.blog success:^(Term *term) {
         //re-syncs categories this is necessary because the server can change the name of the category!!!
-		[self.blog syncCategoriesWithSuccess:nil failure:nil];
-        [[NSNotificationCenter defaultCenter] postNotificationName:WPNewCategoryCreatedAndUpdatedInBlogNotificationName
+		//[self.blog syncCategoriesWithSuccess:nil failure:nil];
+        /* [[NSNotificationCenter defaultCenter] postNotificationName:WPNewCategoryCreatedAndUpdatedInBlogNotificationName
                                                             object:self
-                                                          userInfo:[NSDictionary dictionaryWithObject:category forKey:@"category"]];
+                                                          userInfo:[NSDictionary dictionaryWithObject:category forKey:@"category"]]; */
+        
+        void (^successBlock)() = ^{
+            [[NSNotificationCenter defaultCenter] postNotificationName:WPNewTermCreatedAndUpdatedInBlogNotificationName
+                                                                object:self
+                                                              userInfo:[NSDictionary dictionaryWithObject:term forKey:@"term"]];
+        };
+		[taxonomy syncTermsWithSuccess:successBlock failure:nil];
+        
         [self clearUI];
         [self removeProgressIndicator];
         [self dismiss];
@@ -172,32 +191,75 @@
     }
 
     if (selContext == kParentCategoriesContext) {
-        Category *curCat = [selectedObjects lastObject];
-
+        //Category *curCat = [selectedObjects lastObject];
+        id curCat = [selectedObjects lastObject];
+        
         if (parentCat) {
             parentCat = nil;
         }
 
-        if (curCat) {
+        /*
+         if (curCat) {
             parentCat = curCat;
             parentCatNameField.text = curCat.categoryName;
             [catTableView reloadData];
         }
-
+         */
+        if (curCat) {
+            if ([curCat isKindOfClass:[Taxonomy class]]) {
+                // taxonomyを選択した時
+                [self setTaxonomyWithObject:curCat];
+                [catTableView reloadData];
+            } else {
+                // termを選択した時
+                parentCat = curCat;
+                parentCatNameField.text = parentCat.name;
+                [catTableView reloadData];
+            }
+        }
     }
 
     [selctionController clean];
 }
 
+- (void)populateSelectionsControllerWithTaxonomies {
+    //WPSelectionTableViewController *selectionTableViewController = [[WPSegmentedSelectionTableViewController alloc] initWithNibName:@"WPSelectionTableViewController" bundle:nil];
+    TaxonomiesSelectionTableViewController *selectionTableViewController = [[TaxonomiesSelectionTableViewController alloc] initWithNibName:@"WPSelectionTableViewController" bundle:nil];
+    
+    NSArray *selObjs = [NSArray array];
+    
+	NSArray *taxonomies = [self.blog taxonomiesOfPostType:self.postType];
+	
+	[selectionTableViewController populateDataSource:taxonomies
+     havingContext:kParentCategoriesContext
+     selectedObjects:selObjs
+     selectionType:kRadio
+     andDelegate:self];
+
+    selectionTableViewController.title = @"タクソノミー";
+    
+    [self.navigationController pushViewController:selectionTableViewController animated:YES];
+}
 
 - (void)populateSelectionsControllerWithCategories {
-    WPSelectionTableViewController *selectionTableViewController = [[WPSegmentedSelectionTableViewController alloc] initWithNibName:@"WPSelectionTableViewController" bundle:nil];
-
-    NSArray *selObjs = ((parentCat == nil) ? [NSArray array] : [NSArray arrayWithObject:parentCat]);
+    //WPSelectionTableViewController *selectionTableViewController = [[WPSegmentedSelectionTableViewController alloc] initWithNibName:@"WPSelectionTableViewController" bundle:nil];
+    TermsSelectionTableViewController *selectionTableViewController = [[TermsSelectionTableViewController alloc] initWithNibName:@"WPSelectionTableViewController" bundle:nil];
     
-	NSArray *cats = [self.blog sortedCategories];
+    //NSArray *selObjs = ((parentCat == nil) ? [NSArray array] : [NSArray arrayWithObject:parentCat]);
+    NSArray *selObjs = [NSArray array];
+    
+    if (taxonomy == nil) {
+        [self setTaxonomyWithObject:[[self.blog taxonomiesOfPostType:self.postType] objectAtIndex:0]];
+    }
+	//NSArray *cats = [self.blog sortedCategories];
+    NSArray *taxonomies = [NSArray arrayWithObject:taxonomy];
+    
+    if([[taxonomies valueForKeyPath:@"terms"] count] < 1){
+        // termsが0個なら以下を行わない。
+        return;
+    }
 	
-	[selectionTableViewController populateDataSource:cats
+	[selectionTableViewController populateDataSource:taxonomies
      havingContext:kParentCategoriesContext
      selectedObjects:selObjs
      selectionType:kRadio
@@ -211,7 +273,7 @@
 #pragma mark - tableviewDelegates/datasources
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView {
-    return 2;
+    return 3;
 }
 
 - (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
@@ -221,6 +283,8 @@
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     if (indexPath.section == 0) {
         return newCatNameCell;
+    } else if (indexPath.section == 1) {
+        return taxonomyNameCell;
     } else {
 //		parentCatNameCell.text = @"Parent Category";
 //		parentCatNameCell.textColor = [UIColor blueColor];
@@ -232,7 +296,9 @@
     [tableView deselectRowAtIndexPath:[tableView indexPathForSelectedRow] animated:YES];
 
     if (indexPath.section == 1) {
-        [self populateSelectionsControllerWithCategories];
+        [self populateSelectionsControllerWithTaxonomies];
+    } else if (indexPath.section == 2) {
+        [self populateSelectionsControllerWithCategories]; // Terms
     }
 }
 
@@ -253,6 +319,21 @@
 - (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex {
     WordPressAppDelegate *delegate = (WordPressAppDelegate*)[[UIApplication sharedApplication] delegate];
     [delegate setAlertRunning:NO];
+}
+
+#pragma mark -
+#pragma mark Utils
+- (void)setTaxonomyWithObject:(Taxonomy *)_taxonomy {
+    taxonomy = _taxonomy;
+    taxonomyNameField.text = [[taxonomy valueForKey:@"taxonomy"] valueForKey:@"label"];
+    
+    // termが一つも無い場合も、「親カテゴリー」欄を隠す。 
+    if([taxonomy.terms count] > 0 && [[taxonomy.taxonomy valueForKey:@"hierarchical"] boolValue]){
+        [parentCatNameCell setHidden:NO];
+    } else {
+        parentCatNameCell.textLabel.text = @"";
+        [parentCatNameCell setHidden:YES];
+    }
 }
 
 @end

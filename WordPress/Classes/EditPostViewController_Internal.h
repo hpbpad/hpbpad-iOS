@@ -22,6 +22,9 @@ extern NSString *const EditPostViewControllerAutosaveDidFailNotification;
 @property (nonatomic, strong) AbstractPost *apost;
 @property (readonly) BOOL hasChanges;
 
+@property (nonatomic, strong) IBOutlet UIView *tagsView;
+@property (nonatomic, strong) IBOutlet UIView *categoriesView;
+@property (nonatomic, strong) IBOutlet UITextView *contentTextView;
 @property (nonatomic, strong) IBOutlet UIButton *hasLocation;
 @property (nonatomic, strong) IBOutlet UIToolbar *toolbar;
 @property (nonatomic, strong) IBOutlet UIBarButtonItem *photoButton;

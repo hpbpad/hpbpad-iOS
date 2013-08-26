@@ -490,8 +490,8 @@
         NSString *title = [self getDocumentTitle];
         SafariActivity *safariActivity = [[SafariActivity alloc] init];
         InstapaperActivity *instapaperActivity = [[InstapaperActivity alloc] init];
-        PocketActivity *pocketActivity = [[PocketActivity alloc] init];
-        GooglePlusActivity *googlePlusActivity = [[GooglePlusActivity alloc] init];
+        //PocketActivity *pocketActivity = [[PocketActivity alloc] init];
+        //GooglePlusActivity *googlePlusActivity = [[GooglePlusActivity alloc] init];
 
         NSMutableArray *activityItems = [NSMutableArray array];
         if (title) {
@@ -499,7 +499,9 @@
         }
 
         [activityItems addObject:[NSURL URLWithString:permaLink]];
-        UIActivityViewController *activityViewController = [[UIActivityViewController alloc] initWithActivityItems:activityItems applicationActivities:@[safariActivity, instapaperActivity, pocketActivity, googlePlusActivity]];
+        //UIActivityViewController *activityViewController = [[UIActivityViewController alloc] initWithActivityItems:activityItems applicationActivities:@[safariActivity, instapaperActivity, pocketActivity, googlePlusActivity]];
+        UIActivityViewController *activityViewController = [[UIActivityViewController alloc] initWithActivityItems:activityItems applicationActivities:@[safariActivity, instapaperActivity]];
+        
         activityViewController.completionHandler = ^(NSString *activityType, BOOL completed) {
             if (!completed)
                 return;
@@ -521,10 +523,10 @@
                 event = StatsEventWebviewOpenedArticleInSafari;
             } else if ([activityType isEqualToString:NSStringFromClass([InstapaperActivity class])]) {
                 event = StatsEventWebviewSentArticleToInstapaper;
-            } else if ([activityType isEqualToString:NSStringFromClass([PocketActivity class])]) {
-                event = StatsEventWebviewSentArticleToPocket;
-            } else if ([activityType isEqualToString:NSStringFromClass([GooglePlusActivity class])]) {
-                event = StatsEventWebviewSentArticleToGooglePlus;
+            //} else if ([activityType isEqualToString:NSStringFromClass([PocketActivity class])]) {
+                //event = StatsEventWebviewSentArticleToPocket;
+            //} else if ([activityType isEqualToString:NSStringFromClass([GooglePlusActivity class])]) {
+                //event = StatsEventWebviewSentArticleToGooglePlus;
             }
             
             if (event != nil) {

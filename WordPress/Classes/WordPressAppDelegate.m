@@ -28,6 +28,7 @@
 #import "WPMobileStats.h"
 #import "WPComLanguages.h"
 #import "WPAccount.h"
+#import "TopMenuViewController.h"
 
 @interface WordPressAppDelegate (Private) <CrashlyticsDelegate>
 - (void)setAppBadge;
@@ -432,6 +433,12 @@
     else
         [[NSNotificationCenter defaultCenter] postNotificationName:@"DismissAlertViewKeyboard" object:nil];
     
+    // アプリが前面にもどってくる前に、トップメニューを表示する。
+    [self.panelNavigationController.masterViewController performSelector:@selector(showTopMenu)];
+    UIViewController *detailViewController = self.panelNavigationController.detailViewController;
+    if( [detailViewController respondsToSelector:@selector(hideOverViewAnimated:)] ) {
+        [detailViewController performSelector:@selector(hideOverViewAnimated:) withObject:NO];
+    }
 }
 
 - (void)applicationDidBecomeActive:(UIApplication *)application {
@@ -449,6 +456,13 @@
     // Clear notifications badge and update server
     [self setAppBadge];
     [[WordPressComApi sharedApi] syncPushNotificationInfo];
+    
+    // アプリが前面にもどってきたとき、トップメニューの半透明レイヤーを表示する。
+    UIViewController *detailViewController = self.panelNavigationController.detailViewController;
+    if( [detailViewController respondsToSelector:@selector(showOverView)] ) {
+        NSInteger delay = 1.00;
+        [detailViewController performSelector:@selector(showOverView) withObject:nil afterDelay:delay];
+    }
 }
 
 
@@ -724,13 +738,16 @@
     if ([[UINavigationBar class] respondsToSelector:@selector(appearance)]) {
         [[UIToolbar appearance] setBackgroundImage:[UIImage imageNamed:@"toolbar_bg"] forToolbarPosition:UIToolbarPositionBottom barMetrics:UIBarMetricsDefault];
 
-        [[UINavigationBar appearance] setBackgroundImage:[UIImage imageNamed:@"navbar_bg"] forBarMetrics:UIBarMetricsDefault];
+        //[[UINavigationBar appearance] setBackgroundImage:[UIImage imageNamed:@"navbar_bg"] forBarMetrics:UIBarMetricsDefault];
+        [[UINavigationBar appearance] setBackgroundImage:[UIImage imageNamed:@"navi_bg"] forBarMetrics:UIBarMetricsDefault];
         [[UINavigationBar appearance] setTitleTextAttributes:
          [NSDictionary dictionaryWithObjectsAndKeys:
-          [UIColor colorWithRed:70.0/255.0 green:70.0/255.0 blue:70.0/255.0 alpha:1.0], 
-          UITextAttributeTextColor, 
+          //[UIColor colorWithRed:70.0/255.0 green:70.0/255.0 blue:70.0/255.0 alpha:1.0],
           [UIColor whiteColor], 
-          UITextAttributeTextShadowColor, 
+          UITextAttributeTextColor,
+          //[UIColor whiteColor],
+          [UIColor colorWithRed:70.0/255.0 green:70.0/255.0 blue:70.0/255.0 alpha:1.0], 
+          UITextAttributeTextShadowColor,
           [NSValue valueWithUIOffset:UIOffsetMake(0, 1)], 
           UITextAttributeTextShadowOffset,
           nil]];
@@ -1138,19 +1155,19 @@
 }
 
 - (void) connectionDidFinishLoading: (NSURLConnection*) connection {
-	NSString *statsDataString = [[NSString alloc] initWithData:statsData encoding:NSUTF8StringEncoding];
-    statsDataString = [[statsDataString componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]] objectAtIndex:0];
-	NSString *appversion = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"];
-    if ([statsDataString compare:appversion options:NSNumericSearch] > 0) {
-        NSLog(@"There's a new version: %@", statsDataString);
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:NSLocalizedString(@"Update Available", @"Popup title to highlight a new version of the app being available.")
-                                                        message:NSLocalizedString(@"A new version of WordPress for iOS is now available", @"Generic popup message to highlight a new version of the app being available.")
-                                                       delegate:self
-                                              cancelButtonTitle:NSLocalizedString(@"Dismiss", @"Dismiss button label.")
-                                              otherButtonTitles:NSLocalizedString(@"Update Now", @"Popup 'update' button to highlight a new version of the app being available. The button takes you to the app store on the device, and should be actionable."), nil];
-        alert.tag = 102;
-        [alert show];
-    }
+//	NSString *statsDataString = [[NSString alloc] initWithData:statsData encoding:NSUTF8StringEncoding];
+//    statsDataString = [[statsDataString componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]] objectAtIndex:0];
+//	NSString *appversion = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"CFBundleVersion"];
+//    if ([statsDataString compare:appversion options:NSNumericSearch] > 0) {
+//        NSLog(@"There's a new version: %@", statsDataString);
+//        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:NSLocalizedString(@"Update Available", @"Popup title to highlight a new version of the app being available.")
+//                                                        message:NSLocalizedString(@"A new version of WordPress for iOS is now available", @"Generic popup message to highlight a new version of the app being available.")
+//                                                       delegate:self
+//                                              cancelButtonTitle:NSLocalizedString(@"Dismiss", @"Dismiss button label.")
+//                                              otherButtonTitles:NSLocalizedString(@"Update Now", @"Popup 'update' button to highlight a new version of the app being available. The button takes you to the app store on the device, and should be actionable."), nil];
+//        alert.tag = 102;
+//        [alert show];
+//    }
 }
 
 - (void)connection:(NSURLConnection *)connection didReceiveResponse:(NSURLResponse *)response {

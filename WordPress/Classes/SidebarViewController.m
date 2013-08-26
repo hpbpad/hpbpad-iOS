@@ -30,6 +30,8 @@
 #import "SoundUtil.h"
 #import "ReaderPostsViewController.h"
 #import "GeneralWalkthroughViewController.h"
+#import "TopMenuViewController.h"
+#import "PostList.h"
 
 // Height for reader/notification/blog cells
 #define SIDEBAR_CELL_HEIGHT 51.0f
@@ -40,7 +42,8 @@
 #define SIDEBAR_BGCOLOR [UIColor colorWithWhite:0.921875f alpha:1.0f];
 #define HEADER_HEIGHT 42.f
 #define DEFAULT_ROW_HEIGHT 48
-#define NUM_ROWS 6
+//#define NUM_ROWS 6
+#define NUM_ROWS 5
 
 @interface SidebarViewController () <NSFetchedResultsControllerDelegate, QuickPhotoButtonViewDelegate> {
     QuickPhotoButtonView *quickPhotoButton;
@@ -55,10 +58,9 @@
 @property (nonatomic, strong) QuickPhotoButtonView *quickPhotoButton;
 @property (nonatomic, strong) UIActionSheet *quickPhotoActionSheet;
 @property (nonatomic, strong) NSFetchedResultsController *resultsController;
-@property (nonatomic, weak) SectionInfo *openSection;
-@property (nonatomic, strong) NSMutableArray *sectionInfoArray;
+//@property (nonatomic, weak) SectionInfo *openSection;
+//@property (nonatomic, strong) NSMutableArray *sectionInfoArray;
 @property (readonly) NSInteger topSectionRowCount;
-@property (nonatomic, strong) NSIndexPath *currentIndexPath;
 @property (readonly) NSUInteger unreadNoteCount;
 @property (nonatomic, assign) BOOL hasUnseenNotes;
 
@@ -96,7 +98,6 @@
 
 - (void)dealloc {
     self.resultsController.delegate = nil;
-    
 }
 
 - (void)viewDidLoad {
@@ -127,9 +128,12 @@
 		}
 	}
     
-    self.settingsButton.backgroundColor = [UIColor clearColor];
-    [self.settingsButton setBackgroundImage:[[UIImage imageNamed:@"SidebarToolbarButton"] stretchableImageWithLeftCapWidth:14.0 topCapHeight:0.0] forState:UIControlStateNormal];
-    [self.settingsButton setBackgroundImage:[[UIImage imageNamed:@"SidebarToolbarButtonHighlighted"] stretchableImageWithLeftCapWidth:14.0 topCapHeight:0.0] forState:UIControlStateHighlighted];
+    [self.settingsButton setBackgroundImage:[self imageWithColor:[UIColor colorWithRed:114.0/255.0 green:109.0/255.0 blue:109.0/255.0 alpha:1.0]] forState:UIControlStateNormal];
+    [self.settingsButton setBackgroundImage:[self imageWithColor:[UIColor colorWithRed:234.0/255.0 green:59.0/255.0 blue:145.0/255.0 alpha:1.0]] forState:UIControlStateHighlighted];
+    //self.settingsButton.backgroundColor = [UIColor clearColor];
+    //[self.settingsButton setBackgroundImage:[[UIImage imageNamed:@"SidebarToolbarButton"] stretchableImageWithLeftCapWidth:14.0 topCapHeight:0.0] forState:UIControlStateNormal];
+    //[self.settingsButton setBackgroundImage:[[UIImage imageNamed:@"SidebarToolbarButtonHighlighted"] stretchableImageWithLeftCapWidth:14.0 topCapHeight:0.0] forState:UIControlStateHighlighted];
+    
     [self.settingsButton setTitle:NSLocalizedString(@"Settings", @"App settings") forState:UIControlStateNormal ];
     self.settingsButton.titleLabel.lineBreakMode = UILineBreakModeClip;
     self.settingsButton.titleLabel.adjustsFontSizeToFitWidth = YES;
@@ -203,7 +207,8 @@
 
 - (void)viewDidAppear:(BOOL)animated {
     [super viewDidAppear:animated]; 
-
+    [self checkNothingToShow];
+    
     if (IS_IPHONE && _showingWelcomeScreen) {
         _showingWelcomeScreen = NO;
         static dispatch_once_t sidebarTeaseToken;
@@ -242,6 +247,9 @@
     [self showWelcomeScreenIfNeeded];
     if (!selectionRestored) {
         [self restorePreservedSelection];
+        if(!_showingWelcomeScreen){
+            [self showTopMenu];
+        }
         selectionRestored = YES;
     }
 }
@@ -255,11 +263,34 @@
     }
 }
 
+// 表示する行数を取得する
+- (NSInteger)numRowsTest {
+    NSDate *now = [NSDate date];
+    NSCalendar *calendar = [NSCalendar currentCalendar];
+    NSUInteger flags = NSSecondCalendarUnit;
+    NSDateComponents *comps = [calendar components:flags fromDate:now];
+    return NUM_ROWS + ( comps.second % 10 );
+}
+
+// 投稿タイプ一覧を取得する
+- (void)getPostTypesForSection:(SectionInfo *)sectionInfo {
+    NSNumber *defaultRowHeight = [NSNumber numberWithInteger:DEFAULT_ROW_HEIGHT];
+    for (int i = 0; i < [sectionInfo.blog postTypesCount]; i++) {
+        [sectionInfo insertObject:defaultRowHeight inRowHeightsAtIndex:i];
+    }
+    [self.tableView reloadData];
+}
+
 - (SectionInfo *)sectionInfoForBlog:(Blog *)blog {
     SectionInfo *sectionInfo = [[SectionInfo alloc] init];			
     sectionInfo.blog = blog;
     sectionInfo.open = NO;
 
+    void (^success)() = ^() {
+        [self getPostTypesForSection:sectionInfo];
+    };
+    [sectionInfo.blog initPostListWithSuccess:success];
+    
     NSNumber *defaultRowHeight = [NSNumber numberWithInteger:DEFAULT_ROW_HEIGHT];
     for (NSInteger i = 0; i < NUM_ROWS; i++) {
         [sectionInfo insertObject:defaultRowHeight inRowHeightsAtIndex:i];
@@ -315,7 +346,7 @@
 
     if ([self.tableView numberOfRowsInSection:0] > 0) {
         NSIndexPath *indexPath = [NSIndexPath indexPathForRow:0 inSection:0];
-        [self processRowSelectionAtIndexPath:indexPath];
+        //[self processRowSelectionAtIndexPath:indexPath];
         [self.tableView selectRowAtIndexPath:indexPath animated:NO scrollPosition:UITableViewScrollPositionNone];
         self.currentIndexPath = indexPath;
     } else {
@@ -333,6 +364,7 @@
 - (void)selectBlogWithSection:(NSUInteger)index {
 NSLog(@"%@", self.sectionInfoArray);
     SectionInfo *sectionInfo = [self.sectionInfoArray objectAtIndex:index - 1];
+    
     if (!sectionInfo.open) {
         [sectionInfo.headerView toggleOpenWithUserAction:YES];
     }
@@ -404,7 +436,6 @@ NSLog(@"%@", self.sectionInfoArray);
     NSIndexPath *preservedIndexPath = [NSIndexPath indexPathForRow:[[dict objectForKey:@"row"] integerValue] inSection:[[dict objectForKey:@"section"] integerValue]];
 
     NSInteger numRows = (preservedIndexPath.section == 0) ? self.topSectionRowCount : NUM_ROWS;
-
     if (preservedIndexPath.section >= [self numberOfSectionsInTableView:self.tableView] || preservedIndexPath.row >= numRows) {
         // preserved index path is not valid anymore
         [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"kSelectedSidebarIndexDictionary"];
@@ -413,7 +444,7 @@ NSLog(@"%@", self.sectionInfoArray);
     }
     
     if (preservedIndexPath.section == 0 && preservedIndexPath.row == 1) {
-        [self processRowSelectionAtIndexPath:preservedIndexPath closingSidebar:NO];
+        //[self processRowSelectionAtIndexPath:preservedIndexPath closingSidebar:NO];
         [self.tableView selectRowAtIndexPath:preservedIndexPath animated:NO scrollPosition:UITableViewScrollPositionNone];
         self.currentIndexPath = preservedIndexPath;
     }
@@ -426,19 +457,55 @@ NSLog(@"%@", self.sectionInfoArray);
                 [sectionInfo.headerView toggleOpenWithUserAction:YES];
             }
             
-            [self processRowSelectionAtIndexPath:preservedIndexPath closingSidebar:NO];
+            //[self processRowSelectionAtIndexPath:preservedIndexPath closingSidebar:NO];
             [self.tableView selectRowAtIndexPath:preservedIndexPath animated:NO scrollPosition:UITableViewScrollPositionNone];
             self.currentIndexPath = preservedIndexPath;
         }
     } else {
         if (preservedIndexPath.row > 0) {
             [self.tableView selectRowAtIndexPath:preservedIndexPath animated:NO scrollPosition:UITableViewScrollPositionNone];
-            [self processRowSelectionAtIndexPath:preservedIndexPath];
+            //[self processRowSelectionAtIndexPath:preservedIndexPath];
             self.currentIndexPath = preservedIndexPath;
         } else {
             [self selectFirstAvailableItem];
         }
     }
+}
+
+// トップメニュー表示中か否か
+- (BOOL)showingTopMenu {
+    BOOL isTopMenu;
+    if ([self.panelNavigationController.detailViewController isMemberOfClass:[TopMenuViewController class]]) {
+        isTopMenu = YES;
+    } else {
+        isTopMenu = NO;
+    }
+    return isTopMenu;
+}
+
+// トップメニューを表示する
+- (void)showTopMenu {
+    if([self showingTopMenu]){ return; }
+    
+    if ( [[self.resultsController fetchedObjects] count] == 0 ) { return; }
+        
+    int sec = 0, row = 0;
+    NSDictionary *dict = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"kSelectedSidebarIndexDictionary"];
+    if (dict) {
+        sec = [[dict objectForKey:@"section"] integerValue];
+        row = [[dict objectForKey:@"row"] integerValue];
+    }
+    
+    if ([self.sectionInfoArray count] > (sec -1)) {
+        //[self selectBlogWithSection:sec];
+    }
+    
+    // 選択状態を解除
+    //[self.tableView deselectRowAtIndexPath:[self.tableView indexPathForSelectedRow] animated:NO];
+    
+    // トップメニューのViewをセット
+    UIViewController *detailViewController = [[TopMenuViewController alloc] initWithNibName:@"TopMenuViewController" bundle:nil];
+    [self.panelNavigationController setDetailViewController:detailViewController closingSidebar:YES];
 }
 
 - (void)selectNotificationsRow {
@@ -661,7 +728,8 @@ NSLog(@"%@", self.sectionInfoArray);
         return self.topSectionRowCount;
     } else {
         SectionInfo *sectionInfo = [self.sectionInfoArray objectAtIndex:section - 1];
-        return sectionInfo.open ? NUM_ROWS : 0;
+        //return sectionInfo.open ? NUM_ROWS : 0;
+        return sectionInfo.open ? NUM_ROWS + [sectionInfo.blog postTypesCount] : 0;
     }
     
 }
@@ -711,19 +779,35 @@ NSLog(@"%@", self.sectionInfoArray);
             cell.imageView.image = [UIImage imageNamed:(self.hasUnseenNotes) ? @"sidebar_notifications_highlighted" : @"sidebar_notifications"];
         }
     } else {
-        switch (indexPath.row) {
+        SectionInfo *sectionInfo = [self.sectionInfoArray objectAtIndex:indexPath.section - 1];
+        
+        // 各投稿タイプ
+        if (indexPath.row < [sectionInfo.blog postTypesCount] && [sectionInfo.blog postTypesCount] > 0) {
+            NSArray *array = sectionInfo.blog.postLists;
+            
+            PostType *postType = [[array objectAtIndex:(int)indexPath.row] valueForKey:@"postType"];
+            title = postType.label;
+            
+            // デフォルトのアイコンを使用する。
+            UIImage *image = [UIImage imageNamed:@"sidebar_posts"];
+            cell.imageView.image = image;
+            
+            // 画像サイズを揃える。
+            UIGraphicsBeginImageContext(CGSizeMake(32, 33));
+            [cell.imageView drawRect:CGRectMake(0, 0, 32, 33)];
+            UIImage *icon = UIGraphicsGetImageFromCurrentImageContext();
+            UIGraphicsEndImageContext();
+            cell.imageView.image = icon;
+            
+            UIButton *addButton = [[UIButton alloc] initWithFrame:CGRectMake(0, 0, SIDEBAR_CELL_ACCESSORY_MAX_WIDTH, SIDEBAR_CELL_SECONDARY_HEIGHT)];
+            [addButton setImage:[UIImage imageNamed:@"sidebar_icon_add"] forState:UIControlStateNormal];
+            [addButton addTarget:self action:@selector(quickAddNewPost:) forControlEvents:UIControlEventTouchUpInside];
+            cell.accessoryView = addButton;
+        }
+        
+        //switch (indexPath.row) {
+        switch (indexPath.row - [sectionInfo.blog postTypesCount]) {
             case 0:
-            {
-                title = NSLocalizedString(@"Posts", @"Menu item to view posts");
-                cell.imageView.image = [UIImage imageNamed:@"sidebar_posts"];
-                UIButton *addButton = [[UIButton alloc] initWithFrame:CGRectMake(0, 0, SIDEBAR_CELL_ACCESSORY_MAX_WIDTH, SIDEBAR_CELL_SECONDARY_HEIGHT)];
-                [addButton setImage:[UIImage imageNamed:@"sidebar_icon_add"] forState:UIControlStateNormal];
-                [addButton addTarget:self action:@selector(quickAddNewPost:) forControlEvents:UIControlEventTouchUpInside];
-                cell.accessoryView = addButton;
-
-                break;
-            }
-            case 1:
             {
                 title = NSLocalizedString(@"Pages", @"Menu item to view pages");
                 cell.imageView.image = [UIImage imageNamed:@"sidebar_pages"];
@@ -734,7 +818,7 @@ NSLog(@"%@", self.sectionInfoArray);
 
                 break;
             }
-            case 2:
+            case 1:
             {
                 title = NSLocalizedString(@"Comments", @"Menu item to view comments");
                 Blog *blog = [self.resultsController objectAtIndexPath:[NSIndexPath indexPathForRow:(indexPath.section - 1) inSection:0]];
@@ -742,19 +826,19 @@ NSLog(@"%@", self.sectionInfoArray);
                 cell.imageView.image = [UIImage imageNamed:@"sidebar_comments"];
                 break;
             }
-            case 3:
+            case 2:
             {
                 title = NSLocalizedString(@"Stats", @"Menu item to view Jetpack stats associated with a blog");
                 cell.imageView.image = [UIImage imageNamed:@"sidebar_stats"];
                 break;
             }
-            case 4:
+            case 3:
             {
                 title = NSLocalizedString(@"View Site", @"Menu item to view the site in a an in-app web view");
                 cell.imageView.image = [UIImage imageNamed:@"sidebar_view"];
                 break;
             }
-            case 5:
+            case 4:
             {
                 title = NSLocalizedString(@"View Admin", @"Menu item to load the dashboard in a an in-app web view");
                 cell.imageView.image = [UIImage imageNamed:@"sidebar_dashboard"];
@@ -802,7 +886,8 @@ NSLog(@"%@", self.sectionInfoArray);
     
     // Create an array containing the index paths of the rows to insert
     NSMutableArray *indexPathsToInsert = [NSMutableArray array];
-    for (NSInteger i = 0; i < NUM_ROWS; i++) {
+    //for (NSInteger i = 0; i < NUM_ROWS; i++) {
+    for (NSInteger i = 0; i < NUM_ROWS + [sectionOpened.blog postTypesCount]; i++) {
         [indexPathsToInsert addObject:[NSIndexPath indexPathForRow:i inSection:sectionNumber]];
     }
     
@@ -817,7 +902,8 @@ NSLog(@"%@", self.sectionInfoArray);
         previousOpenSection.open = NO;
         [previousOpenSection.headerView toggleOpenWithUserAction:NO];
         previousOpenSectionIndex = [self.sectionInfoArray indexOfObject:previousOpenSection] + 1;
-        for (NSInteger i = 0; i < NUM_ROWS; i++) {
+        //for (NSInteger i = 0; i < NUM_ROWS; i++) {
+        for (NSInteger i = 0; i < NUM_ROWS + [previousOpenSection.blog postTypesCount]; i++) {
             [indexPathsToDelete addObject:[NSIndexPath indexPathForRow:i inSection:previousOpenSectionIndex]];
         }
     }
@@ -826,15 +912,30 @@ NSLog(@"%@", self.sectionInfoArray);
     if ([self.tableView numberOfRowsInSection:sectionNumber] == 0) {
         [self.tableView insertRowsAtIndexPaths:indexPathsToInsert withRowAnimation:UITableViewRowAnimationFade];
     }
-    if ([self.tableView numberOfRowsInSection:previousOpenSectionIndex] == NUM_ROWS) {
+    //if ([self.tableView numberOfRowsInSection:previousOpenSectionIndex] == NUM_ROWS) {
+    if ([self.tableView numberOfRowsInSection:previousOpenSectionIndex] == NUM_ROWS + [previousOpenSection.blog postTypesCount]) {
         [self.tableView deleteRowsAtIndexPaths:indexPathsToDelete withRowAnimation:UITableViewRowAnimationFade];
     }
     [self.tableView endUpdates];
     self.openSection = sectionOpened;
     // select the first row in the section
     // if we don't, a) you lose the current selection, b) the sidebar doesn't open on iPad
-    [self.tableView selectRowAtIndexPath:[indexPathsToInsert objectAtIndex:0] animated:NO scrollPosition:UITableViewScrollPositionNone];    
-    [self processRowSelectionAtIndexPath:[indexPathsToInsert objectAtIndex:0] closingSidebar:NO];
+    //[self.tableView selectRowAtIndexPath:[indexPathsToInsert objectAtIndex:0] animated:NO scrollPosition:UITableViewScrollPositionNone];    
+    //[self processRowSelectionAtIndexPath:[indexPathsToInsert objectAtIndex:0] closingSidebar:NO];
+    // トップメニュー表示中は、選択せず解除する。（何も選択していない状態にしておく）
+    if([self showingTopMenu]) {
+        /*
+        if ([self.panelNavigationController.detailViewController respondsToSelector:@selector(updateThumbnailViewPager)]) {
+            [self.panelNavigationController.detailViewController performSelector:@selector(updateThumbnailViewPager)];
+        }
+        [self.tableView deselectRowAtIndexPath:[self.tableView indexPathForSelectedRow] animated:NO];
+        [self.tableView selectRowAtIndexPath:[indexPathsToInsert objectAtIndex:0] animated:NO scrollPosition:UITableViewScrollPositionNone];
+        [self processRowSelectionAtIndexPath:[indexPathsToInsert objectAtIndex:0] closingSidebar:NO];
+        */
+    } else {
+        [self.tableView selectRowAtIndexPath:[indexPathsToInsert objectAtIndex:0] animated:NO scrollPosition:UITableViewScrollPositionNone];
+        [self processRowSelectionAtIndexPath:[indexPathsToInsert objectAtIndex:0] closingSidebar:NO];
+    }
     
     // scroll to the section header view if it's not visible
     CGRect sectionRect = [tableView rectForSection:openSectionIdx];
@@ -908,7 +1009,7 @@ NSLog(@"%@", self.sectionInfoArray);
 - (void)processRowSelectionAtIndexPath:(NSIndexPath *)indexPath closingSidebar:(BOOL)closingSidebar {
     WPFLog(@"%@ %@ %@", self, NSStringFromSelector(_cmd), indexPath);
     
-    if (self.currentIndexPath) {
+    if (self.currentIndexPath && ![self showingTopMenu]) {
         if ([indexPath compare:self.currentIndexPath] == NSOrderedSame && !changingContentForSelectedSection) {
             if (IS_IPAD) {
                 [self.panelNavigationController showSidebar];
@@ -926,7 +1027,8 @@ NSLog(@"%@", self.sectionInfoArray);
     [[NSUserDefaults standardUserDefaults] setObject:dict forKey:@"kSelectedSidebarIndexDictionary"];
     [NSUserDefaults resetStandardUserDefaults];
     
-    UIViewController *detailViewController = nil;  
+    NSNumber *postTypeIndex = nil;
+    UIViewController *detailViewController = nil;
     if (indexPath.section == 0) { // Reader & Notifications
         
         if (indexPath.row == 0) { // Reader
@@ -943,34 +1045,34 @@ NSLog(@"%@", self.sectionInfoArray);
         }
 
     } else {
+        SectionInfo *sectionInfo = [self.sectionInfoArray objectAtIndex:indexPath.section - 1];
+        
         Blog *blog = [self.resultsController objectAtIndexPath:[NSIndexPath indexPathForRow:(indexPath.section - 1) inSection:0]];
         NSString *blogURL = @"";
         NSString *dashboardURL = @"";
         
         Class controllerClass = nil;
         //did user select the same item, but for a different blog? If so then just update the data in the view controller.
-        switch (indexPath.row) {
+        
+        // 各投稿タイプ
+        if (indexPath.row < [sectionInfo.blog postTypesCount] && [sectionInfo.blog postTypesCount] > 0) {
+            controllerClass = [PostsViewController class];
+            postTypeIndex = [NSNumber numberWithInteger:indexPath.row];
+        }
+        switch (indexPath.row - [sectionInfo.blog postTypesCount]) {
             case 0:
-                [WPMobileStats incrementProperty:StatsPropertySidebarSiteClickedPosts forEvent:StatsEventAppClosed];
-                
-                 controllerClass = [PostsViewController class];
-                break;
-            case 1:
                 [WPMobileStats incrementProperty:StatsPropertySidebarSiteClickedPages forEvent:StatsEventAppClosed];
-                
                 controllerClass = [PagesViewController class];
                 break;
-            case 2:
+            case 1:
                 [WPMobileStats incrementProperty:StatsPropertySidebarSiteClickedComments forEvent:StatsEventAppClosed];
-                
                 controllerClass = [CommentsViewController class];
                 break;
-            case 3:
+            case 2:
                 [WPMobileStats incrementProperty:StatsPropertySidebarSiteClickedStats forEvent:StatsEventAppClosed];
-                
                 controllerClass =  [StatsWebViewController class];//IS_IPAD ? [StatsWebViewController class] : [StatsTableViewController class];
                 break;
-            case 4 :
+            case 3 :
                 [WPMobileStats incrementProperty:StatsPropertySidebarSiteClickedViewSite forEvent:StatsEventAppClosed];
                 
                 blogURL = blog.url;
@@ -1005,7 +1107,7 @@ NSLog(@"%@", self.sectionInfoArray);
                     [SoundUtil playSwipeSound];
                 }
                 return;
-            case 5:
+            case 4:
                 [WPMobileStats incrementProperty:StatsPropertySidebarSiteClickedViewAdmin forEvent:StatsEventAppClosed];
                 
                  dashboardURL = [blog.xmlrpc stringByReplacingOccurrencesOfString:@"xmlrpc.php" withString:@"wp-admin/"];
@@ -1055,11 +1157,22 @@ NSLog(@"%@", self.sectionInfoArray);
                     [self.panelNavigationController closeSidebar];
             }
             [self.panelNavigationController popToRootViewControllerAnimated:NO];
+            
+            // 選択されたのが投稿タイプなら、detailViewController(正体はpostViewController)が表示する記事一覧を変更する。タイプを示す番号を渡す。
+            if (postTypeIndex && [self.panelNavigationController.detailViewController respondsToSelector:@selector(setPostsWithIndex:)]) {
+                [self.panelNavigationController.detailViewController performSelector:@selector(setPostsWithIndex:) withObject:postTypeIndex];
+            }
+
             return;
         } else {
             detailViewController = (UIViewController *)[[controllerClass alloc] init];
             if ([detailViewController respondsToSelector:@selector(setBlog:)]) {
                 [detailViewController performSelector:@selector(setBlog:) withObject:blog];
+            }
+            
+            // 選択されたのが投稿タイプなら、表示する記事一覧を変更する。
+            if (postTypeIndex && [detailViewController respondsToSelector:@selector(setPostsWithIndex:)]) {
+                [detailViewController performSelector:@selector(setPostsWithIndex:) withObject:postTypeIndex];
             }
         }
     } 
@@ -1120,7 +1233,9 @@ NSLog(@"%@", self.sectionInfoArray);
         return;
     }
     NSIndexPath *indexPath = [self.tableView indexPathForSelectedRow];
-    if (indexPath) {
+    // おそらく、indexPathはtable選択直後以外nil。チェックの必要性？
+    //if (indexPath) {
+    if (YES) {
         if (indexPath.section != wantedSection || changingContentForSelectedSection) {
             if (wantedSection > 0) {
                 NSUInteger sec = wantedSection;
@@ -1190,4 +1305,20 @@ NSLog(@"%@", self.sectionInfoArray);
     }
 }
 
+//　指定したUIColorでCGRectの大きさを塗り潰したUIImageを返す
+- (UIImage *)imageWithColor:(UIColor *)color {
+    CGRect rect = CGRectMake(0.0f, 0.0f, 1.0f, 1.0f);
+    UIGraphicsBeginImageContext(rect.size);
+    CGContextRef context = UIGraphicsGetCurrentContext();
+    CGContextSetFillColorWithColor(context, [color CGColor]);
+    CGContextFillRect(context, rect);
+    UIImage *image = UIGraphicsGetImageFromCurrentImageContext();
+    UIGraphicsEndImageContext();
+    return image;
+}
+
+//　ブログの配列を返す
+- (NSArray *)blogs {
+    return [self.resultsController fetchedObjects];
+}
 @end
