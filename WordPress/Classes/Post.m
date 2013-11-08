@@ -132,10 +132,11 @@
         self.mt_text_more = nil;
     }
 	self.wp_slug		= [postInfo objectForKey:@"wp_slug"];
+    //TODO: post_thumnail の値はWPの実装でも無視されており、用途は不明。
+    //      値は struct のため、対応する場合は複数個返ってきてもよい実装にした方がよい。
 	self.post_thumbnail = nil;
     if ([[postInfo objectForKey:@"post_thumbnail"] count] > 0){
         self.post_thumbnail = [[[postInfo objectForKey:@"post_thumbnail"] objectForKey:@"attachment_id"] numericValue];
-        //TODO: 配列からattachment_idを取り出す
         if( self.post_thumbnail == 0) self.post_thumbnail = nil;
     }
 	self.postFormat		= [postInfo objectForKey:@"post_format"];
@@ -232,7 +233,9 @@
     NSArray *ignoreTaxonomies = [NSArray arrayWithObjects:@"post_format",@"post_tag",nil];
     NSArray *array = [objects filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"NOT (taxonomy IN %@)", ignoreTaxonomies]];
     for (Term *term in array) {
-        NSSet *results = [self.blog.terms filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"name like %@", [term valueForKey:@"name"]]];
+        //NSSet *results = [self.blog.terms filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"name like %@", [term valueForKey:@"name"]]];
+        NSPredicate *predicate = [NSPredicate predicateWithFormat:@"termID = %d",[[term valueForKey:@"term_id"] intValue]];
+        NSSet *results = [self.blog.terms filteredSetUsingPredicate:predicate];
         if (results && (results.count > 0)) {
             [terms unionSet:results];
 		}
@@ -321,7 +324,7 @@
                    parameters:parameters
                       success:^(AFHTTPRequestOperation *operation, id responseObject) {
                           NSDictionary *mediaItem = (NSDictionary *)responseObject;
-                          self.featuredImageURL = [mediaItem objectForKey:@"link"];
+                          self.featuredImageURL = [mediaItem stringForKey:@"link"];
                           if (success) success();
                       } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
                           if (failure) {
@@ -345,7 +348,7 @@
         NSDictionary *tags = [NSDictionary dictionaryWithObject:tagsNames forKey:@"post_tag"];
         [postParams setValueIfNotNil:tags forKey:@"terms_names"];
     }
-    
+    /*
     if ([self valueForKey:@"terms"] != nil) {
         NSMutableDictionary *terms = [[NSMutableDictionary alloc] init];
         for (NSString *taxonomyName in [[self.blog taxonomiesOfPostType:self.postType] valueForKeyPath:@"name"] ) {
@@ -354,7 +357,26 @@
         }
         for (Term *term in self.terms) {
             NSMutableArray *array = [terms objectForKey:term.taxonomy];
-                [array addObject:term.termID];
+            [array addObject:term.termID];
+        }
+        [postParams setObject:terms forKey:@"terms"];
+    }
+    */
+    if ([self valueForKey:@"terms"] != nil) {
+        NSMutableDictionary *terms = [[NSMutableDictionary alloc] init];
+        
+        for (NSString *taxonomyName in [[self.blog taxonomiesOfPostType:self.postType] valueForKeyPath:@"name"] ) {
+            if([taxonomyName isEqualToString:@"post_tag"]){ continue; }
+            
+            NSPredicate *predicate = [NSPredicate predicateWithFormat:@"%K = %@",@"taxonomy",taxonomyName];
+            NSArray *array = [[[self.terms filteredSetUsingPredicate:predicate] valueForKeyPath:@"termID"] allObjects];
+            if([array count] > 0){
+                [terms setValue:array forKey:taxonomyName];
+            } else {
+                //TODO: 一つも選択されていない場合、全解除する。
+                //      このまま空の配列を渡すと、”変更無し”と解釈されてしまう。
+                [terms setValue:array forKey:taxonomyName];
+            }
         }
         [postParams setObject:terms forKey:@"terms"];
     }

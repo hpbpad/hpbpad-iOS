@@ -25,6 +25,7 @@ CGFloat const BadgeHeight = 24.f;
     
 @implementation SidebarSectionHeaderView {
     BOOL _isOpen;
+    UIImageView *_arrowImageView;
 }
 
 
@@ -50,6 +51,7 @@ CGFloat const BadgeHeight = 24.f;
         _isOpen = NO;
         self.userInteractionEnabled = YES;
         
+        /*
         CGFloat blavatarOffset = (frame.size.height - BlavatarHeight) / 2.f - 1.f;
         blavatarView = [[UIImageView alloc] initWithFrame:CGRectMake(8.f, blavatarOffset, BlavatarHeight, BlavatarHeight)]; // 8.f is the x position calculated from regular row height
         [blavatarView setAlpha:BLAVATAR_ALPHA];
@@ -61,6 +63,7 @@ CGFloat const BadgeHeight = 24.f;
         blavatarView.clipsToBounds = NO;
         [blavatarView setImageWithBlavatarUrl:blog.blavatarUrl isWPcom:blog.isWPcom];
         [self addSubview: blavatarView];
+         */
         
         int numberOfPendingComments = [blog numberOfPendingComments];
       
@@ -78,8 +81,10 @@ CGFloat const BadgeHeight = 24.f;
         else
             label.text = [blog hostURL];            
         
-        label.font = [UIFont systemFontOfSize:17.0];
-        label.textColor = [UIColor colorWithRed:220.0/255.0 green:220.0/255.0 blue:220.0/255.0 alpha:1.0];
+        //label.font = [UIFont systemFontOfSize:17.0];
+        label.font = [UIFont systemFontOfSize:13.0];
+        //label.textColor = [UIColor colorWithRed:220.0/255.0 green:220.0/255.0 blue:220.0/255.0 alpha:1.0];
+        label.textColor = [UIColor colorWithRed:255.0/255.0 green:255.0/255.0 blue:255.0/255.0 alpha:1.0];
         label.shadowOffset = CGSizeMake(0, 1.1f);
         label.shadowColor = [UIColor blackColor];
         label.backgroundColor = [UIColor clearColor];
@@ -123,13 +128,30 @@ CGFloat const BadgeHeight = 24.f;
 
         [self updateGradient];
         
-        background = [[UIImageView alloc] initWithImage:[[UIImage imageNamed:@"sidebar_cell_bg"] stretchableImageWithLeftCapWidth:0 topCapHeight:1]];
+        //background = [[UIImageView alloc] initWithImage:[[UIImage imageNamed:@"sidebar_cell_bg"] stretchableImageWithLeftCapWidth:0 topCapHeight:1]];
+        background = [[UIImageView alloc] init];
+        background.backgroundColor = [UIColor colorWithRed:49.0f/255.0f green:47.0f/255.0f blue:47.0f/255.0f alpha:255.0f/255.0f]; // 20130902
         background.frame = self.frame;
         [self addSubview:background];
         [self sendSubviewToBack:background];
         
+        // 右端の矢印(>)
+        CGFloat x = self.frame.size.width - (IS_IPAD ? 42.0 : 91.0);
+        _arrowImageView = [[UIImageView alloc] initWithFrame:CGRectMake(x,4,32,32)];
+        _arrowImageView.image = [UIImage imageNamed:@"arrowright"];
+        _arrowImageView.highlightedImage = [UIImage imageNamed:@"arrowright_on"];
+        [self addSubview:_arrowImageView];
+        
+        // 下線
+        CGFloat w = self.frame.size.width - (IS_IPAD ? 26.0 : 75.0);
+        CALayer* border = [CALayer layer];
+        border.borderColor = [UIColor colorWithRed:255.0f/255.0f green:255.0f/255.0f blue:255.0f/255.0f alpha:1].CGColor;
+        border.borderWidth = 1;
+        border.frame = CGRectMake(12, self.layer.frame.size.height-2, w, 1);
+        [self.layer addSublayer:border];
+        
         // we need a background color in order to make the cell incertion/deletion animation look nice
-        // since sidebar_cell_bg is transparent 
+        // since sidebar_cell_bg is transparent
         //self.backgroundColor = [UIColor colorWithPatternImage:[UIImage imageNamed:@"sidebar_bg"]];
     }
         
@@ -151,7 +173,11 @@ CGFloat const BadgeHeight = 24.f;
 -(CGRect)titleLabelFrame:(BOOL)isBadgeVisible {
     CGRect titleLabelFrame = self.bounds;
     titleLabelFrame.size.width = startingFrameWidth;    
-    titleLabelFrame.origin.x = 49.f; // Aligns to row labels
+    //titleLabelFrame.origin.x = 49.f; // Aligns to row labels
+    titleLabelFrame.origin.x = 15.f; // Aligns to row labels
+    CGFloat offset = 15.0; // 下に寄せる
+    titleLabelFrame.origin.y += offset;
+    titleLabelFrame.size.height -= offset;
     
     if ( IS_IPAD ) {
         if ( isBadgeVisible ) 
@@ -212,11 +238,15 @@ CGFloat const BadgeHeight = 24.f;
     
     if (_isOpen) {
         [self.titleLabel setTextColor:[UIColor whiteColor]];
-        [blavatarView setAlpha:1.0f];
+        //[blavatarView setAlpha:1.0f];
+        _arrowImageView.image = [UIImage imageNamed:@"arrowdown"];
+        _arrowImageView.highlightedImage = [UIImage imageNamed:@"arrowdown_on"];
     }
     else {
         [self.titleLabel setTextColor:[UIColor colorWithRed:220.0/255.0 green:220.0/255.0 blue:220.0/255.0 alpha:1.0]];
-        [blavatarView setAlpha:BLAVATAR_ALPHA];
+        //[blavatarView setAlpha:BLAVATAR_ALPHA];
+        _arrowImageView.image = [UIImage imageNamed:@"arrowright"];
+        _arrowImageView.highlightedImage = [UIImage imageNamed:@"arrowright_on"];
     }
     
     if (_isOpen) {
@@ -228,6 +258,17 @@ CGFloat const BadgeHeight = 24.f;
             [self.delegate sectionHeaderView:self sectionClosed:self.sectionInfo];
         }
     }
+}
+
+// タッチイベントでarrowImageViewのhighlight状態を切り替える
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event {
+    _arrowImageView.highlighted = YES;
+}
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event {
+    _arrowImageView.highlighted = NO;
+}
+-(void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event{
+    _arrowImageView.highlighted = NO;
 }
 
 - (void)updateGradient {
@@ -246,5 +287,6 @@ CGFloat const BadgeHeight = 24.f;
 - (void)dealloc {
     [[NSNotificationCenter defaultCenter] removeObserver:self];
 }
+
 
 @end

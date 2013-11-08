@@ -30,13 +30,13 @@
 @property (nonatomic, strong) IBOutlet ThumbnailPagerView *thumbnailPagerView;
 @property (nonatomic, strong) IBOutlet UIScrollView *scrollView;
 @property (strong, nonatomic) IBOutlet PostTypePagerView *postTypePagerView;
-@property (nonatomic, strong) IBOutlet UIBarButtonItem *barButtonItem;
 @property (weak, nonatomic) IBOutlet UIButton *postButton;
 @property (weak, nonatomic) IBOutlet UIButton *photoButton;
 @property (weak, nonatomic) IBOutlet UIButton *listButton;
 @property (strong, nonatomic) IBOutlet UIPanGestureRecognizer *panGestureRecognizer;
 @property (strong, nonatomic) IBOutlet UITapGestureRecognizer *tapBlogThumbnailRecognizer;
 @property (nonatomic) NSInteger webViewLoadingCount;
+@property (strong, nonatomic) UIButton *downButton;
 
 - (IBAction)onTouchUpPostButton:(UIButton *)sender;
 - (IBAction)onTouchUpPhotoButton:(UIButton *)sender;

@@ -7,6 +7,7 @@
 //
 
 #import "SidebarTableViewCell.h"
+#import <QuartzCore/QuartzCore.h>
 
 @interface SidebarTableViewCell (Private)
 
@@ -28,10 +29,18 @@
         //self.textLabel.textColor = [UIColor colorWithRed:221.0f/255.0f green:221.0f/255.0f blue:221.0f/255.0f alpha:1.0f];
         self.textLabel.textColor = [UIColor colorWithRed:255.0f/255.0f green:255.0f/255.0f blue:255.0f/255.0f alpha:1.0f];
         self.textLabel.font = [UIFont systemFontOfSize:17.0];
-        self.backgroundView = [[UIImageView alloc] initWithImage:[[UIImage imageNamed:@"sidebar_cell_bg"] stretchableImageWithLeftCapWidth:0 topCapHeight:1]];
-        //self.selectedBackgroundView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"sidebar_cell_bg_selected"]];
+        //self.backgroundView = [[UIImageView alloc] initWithImage:[[UIImage imageNamed:@"sidebar_cell_bg"] stretchableImageWithLeftCapWidth:0 topCapHeight:2]];
+        self.backgroundView = [[UIImageView alloc] init];
         self.selectedBackgroundView = [[UIImageView alloc] init];
         [self.selectedBackgroundView setBackgroundColor:[UIColor colorWithRed:234.0/255.0 green:59.0/255.0 blue:145.0/255.0 alpha:1.0]];
+        
+        CALayer* border = [CALayer layer];
+        border.borderColor = [UIColor colorWithRed:101.0f/255.0f green:97.0f/255.0f blue:97.0f/255.0f alpha:1].CGColor;
+        border.borderWidth = 1;
+        CGFloat w = self.frame.size.width - (IS_IPAD ? 26.0 : 75.0);
+        //border.frame = CGRectMake(12, self.layer.frame.size.height-2, w, 1);
+        border.frame = CGRectMake(12, self.layer.frame.size.height+3, w, 1);
+        [self.layer addSublayer:border];
     }
     return self;
 }
@@ -97,4 +106,14 @@
     commentsLbl.shadowColor = [UIColor blackColor];
     return commentsLbl;
 }
+
+
+- (void)setSelected:(BOOL)selected animated:(BOOL)animated {
+    [super setSelected:selected animated:animated];
+    if (self.accessoryView && [self.accessoryView isKindOfClass:[UIButton class]]) {
+        UIButton *btn = (UIButton *)self.accessoryView;
+        [btn setHighlighted:NO];
+    }
+}
+
 @end

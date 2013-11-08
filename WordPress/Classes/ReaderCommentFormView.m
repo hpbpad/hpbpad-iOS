@@ -80,7 +80,9 @@
 								   if([self.delegate respondsToSelector:@selector(readerTextFormDidSend:)]) {
 									   [self.delegate readerTextFormDidSend:self];
 								   }
-								   
+                                   
+                                   [WPMobileStats trackEventForWPCom:StatsEventReaderPublishedComment];
+                                   [WPMobileStats pingWPComStatsEndpoint:@"publish_comment"];
 							   } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
 								   [self enableForm:YES];
 								   [self.activityView stopAnimating];

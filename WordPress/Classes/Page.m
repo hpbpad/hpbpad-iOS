@@ -113,9 +113,33 @@
 
 @implementation Page (WordPressApi)
 
-- (NSDictionary *)XMLRPCDictionary {
-    NSMutableDictionary *postParams = [NSMutableDictionary dictionaryWithDictionary:[super XMLRPCDictionary]];
+// ページのみ、他の投稿タイプと別の扱いが異なる。古いパラメータを使用する。
+- (NSDictionary *)XMLRPCDictionaryOld {
+    NSMutableDictionary *postParams = [NSMutableDictionary dictionary];
+    [postParams setValueIfNotNil:self.postTitle forKey:@"title"];
+    [postParams setValueIfNotNil:self.content forKey:@"description"];
+    [postParams setValueIfNotNil:self.date_created_gmt forKey:@"date_created_gmt"];
+    [postParams setValueIfNotNil:self.password forKey:@"wp_password"];
+    [postParams setValueIfNotNil:self.permaLink forKey:@"permalink"];
+    [postParams setValueIfNotNil:self.mt_excerpt forKey:@"mt_excerpt"];
+    [postParams setValueIfNotNil:self.wp_slug forKey:@"wp_slug"];
+    if (self.post_thumbnail == nil) {
+        if ([self.postID intValue] > 0) {
+            [postParams setValue:@"" forKey:@"wp_post_thumbnail"];
+        }
+    } else {
+        [postParams setValue:self.post_thumbnail forKey:@"wp_post_thumbnail"];
+	}
+    
+	if (self.mt_text_more != nil && [self.mt_text_more length] > 0)
+        [postParams setObject:self.mt_text_more forKey:@"mt_text_more"];
+    return postParams;
+}
 
+- (NSDictionary *)XMLRPCDictionary {
+    //NSMutableDictionary *postParams = [NSMutableDictionary dictionaryWithDictionary:[super XMLRPCDictionary]];
+    NSMutableDictionary *postParams = [NSMutableDictionary dictionaryWithDictionary:[self XMLRPCDictionaryOld]];
+    
     if (self.status == nil)
         self.status = @"publish";
 

@@ -35,6 +35,7 @@
 
 @implementation EditSiteViewController {
     UIAlertView *failureAlertView;
+    CGFloat originalHeight;
 }
 
 @synthesize password, username, url, geolocationEnabled;
@@ -117,6 +118,7 @@
     
     [self refreshTable];
     [self enableDisableSaveButton];
+    originalHeight = self.view.frame.size.height;
 }
 
 
@@ -544,8 +546,6 @@
 - (void)validationSuccess:(NSString *)xmlrpc {
 	[savingIndicator stopAnimating];
 	[savingIndicator setHidden:YES];
-    blog.url = self.url;
-    blog.xmlrpc = xmlrpc;
     blog.geolocationEnabled = self.geolocationEnabled;
     blog.account.password = self.password;
 
@@ -773,38 +773,29 @@
 #pragma mark -
 #pragma mark Keyboard Related Methods
 
-- (void)handleKeyboardDidShow:(NSNotification *)notification {    
-    CGRect rect = [[notification.userInfo valueForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue];    
-    CGRect frame = self.view.frame;
+- (void)handleKeyboardDidShow:(NSNotification *)notification {
+    CGRect rect = [[notification.userInfo valueForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue];
+    CGFloat height;
     if(UIInterfaceOrientationIsLandscape(self.interfaceOrientation)) {
-        frame.size.height -= rect.size.width;
+        height = [[UIScreen mainScreen] applicationFrame].size.width - self.navigationController.navigationBar.frame.size.height  - rect.size.width;
     } else {
-        frame.size.height -= rect.size.height;
+        height = [[UIScreen mainScreen] applicationFrame].size.height - self.navigationController.navigationBar.frame.size.height  - rect.size.height;
     }
-    self.view.frame = frame;
+    self.view.frame = CGRectMake(self.view.frame.origin.x, self.view.frame.origin.y, self.view.frame.size.width, height);
     
     CGPoint point = [tableView convertPoint:lastTextField.frame.origin fromView:lastTextField];
-    if (!CGRectContainsPoint(frame, point)) {
+    if (!CGRectContainsPoint(self.view.frame, point)) {
         NSIndexPath *indexPath = [tableView indexPathForRowAtPoint:point];
         [tableView scrollToRowAtIndexPath:indexPath atScrollPosition:UITableViewScrollPositionMiddle animated:YES];
     }
 }
 
-
 - (void)handleKeyboardWillHide:(NSNotification *)notification {
-    CGRect rect = [[notification.userInfo valueForKey:UIKeyboardFrameEndUserInfoKey] CGRectValue];
-    CGRect frame = self.view.frame;
-    if(UIInterfaceOrientationIsLandscape(self.interfaceOrientation)) {
-        frame.size.height += rect.size.width;
-    } else {
-        frame.size.height += rect.size.height;
-    }
-
+    CGFloat height = originalHeight;
     [UIView animateWithDuration:0.3 animations:^{
-        self.view.frame = frame;
+        self.view.frame = CGRectMake(self.view.frame.origin.x, self.view.frame.origin.y, self.view.frame.size.width, height);
     }];
 }
-
 
 - (void)handleViewTapped {
     [lastTextField resignFirstResponder];

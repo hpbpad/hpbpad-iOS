@@ -21,7 +21,6 @@
 #import "PostsViewController.h"
 #import "CommentsViewController.h"
 #import "StatsWebViewController.h"
-#import "WPReaderViewController.h"
 #import "SoundUtil.h"
 #import "WordPressComApiCredentials.h"
 #import "PocketAPI.h"
@@ -173,7 +172,7 @@
     [[Crashlytics sharedInstance] setDelegate:self];
 
     BOOL hasCredentials = [[WordPressComApi sharedApi] hasCredentials];
-    [Crashlytics setObjectValue:[NSNumber numberWithBool:hasCredentials] forKey:@"logged_in"];
+    [self setCommonCrashlyticsParameters];
 
     if (hasCredentials && [WordPressComApi sharedApi].username != nil) {
         [Crashlytics setUserName:[WordPressComApi sharedApi].username];
@@ -181,14 +180,21 @@
 
     void (^wpcomLoggedInBlock)(NSNotification *) = ^(NSNotification *note) {
         [Crashlytics setUserName:[WordPressComApi sharedApi].username];
-        [Crashlytics setObjectValue:[NSNumber numberWithBool:[[WordPressComApi sharedApi] hasCredentials]] forKey:@"logged_in"];
+        [self setCommonCrashlyticsParameters];
     };
     void (^wpcomLoggedOutBlock)(NSNotification *) = ^(NSNotification *note) {
         [Crashlytics setUserName:nil];
-        [Crashlytics setObjectValue:[NSNumber numberWithBool:[[WordPressComApi sharedApi] hasCredentials]] forKey:@"logged_in"];
+        [self setCommonCrashlyticsParameters];
     };
     [[NSNotificationCenter defaultCenter] addObserverForName:WordPressComApiDidLoginNotification object:nil queue:nil usingBlock:wpcomLoggedInBlock];
     [[NSNotificationCenter defaultCenter] addObserverForName:WordPressComApiDidLogoutNotification object:nil queue:nil usingBlock:wpcomLoggedOutBlock];
+}
+
+- (void)setCommonCrashlyticsParameters
+{
+    [Crashlytics setObjectValue:[NSNumber numberWithBool:[[WordPressComApi sharedApi] hasCredentials]] forKey:@"logged_in"];
+    [Crashlytics setObjectValue:@([[WordPressComApi sharedApi] hasCredentials]) forKey:@"connected_to_dotcom"];
+    [Crashlytics setObjectValue:@([Blog countWithContext:[self managedObjectContext]]) forKey:@"number_of_blogs"];
 }
 
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
@@ -252,7 +258,8 @@
 	[self toggleExtraDebuggingIfNeeded];
 
 	// Stats use core data, so run them after initialization
-	[self checkIfStatsShouldRun];
+	// 統計データ収集とアップデートチェックは削除
+	//[self checkIfStatsShouldRun];
 
 	// Clean media files asynchronously
     // dispatch_async feels a bit faster than performSelectorOnBackground:
@@ -372,6 +379,8 @@
 {
     if ([[GPPShare sharedInstance] handleURL:url sourceApplication:sourceApplication annotation:annotation]) {
         return YES;
+    } else if ([[PocketAPI sharedAPI] handleOpenURL:url]) {
+        return YES;
     }
     return NO;
 }
@@ -379,6 +388,7 @@
 - (void)applicationWillTerminate:(UIApplication *)application {
     [FileLogger log:@"%@ %@", self, NSStringFromSelector(_cmd)];
     [self setAppBadge];
+    [WPMobileStats endSession];
 	
 	if (IS_IPAD) {
 //		UIViewController *topVC = self.masterNavigationController.topViewController;
@@ -394,6 +404,7 @@
 
     [WPMobileStats trackEventForWPComWithSavedProperties:StatsEventAppClosed];
     [self resetStatRelatedVariables];
+    [WPMobileStats pauseSession];
     
     //Keep the app alive in the background if we are uploading a post, currently only used for quick photo posts
     UIApplication *app = [UIApplication sharedApplication];
@@ -425,6 +436,19 @@
     }
 }
 
+- (void)applicationWillEnterForeground:(UIApplication *)application
+{
+    [WPMobileStats resumeSession];
+    
+    // アプリが前面にもどってきたとき、 トップメニューの半透明レイヤーを表示する。MP表示の更新も行う。
+    UIViewController *detailViewController = self.panelNavigationController.detailViewController;
+    if( [detailViewController isKindOfClass:[TopMenuViewController class]] ) {
+        NSInteger delay = 1.00;
+        [detailViewController performSelector:@selector(showOverView) withObject:nil afterDelay:delay];
+        [detailViewController performSelector:@selector(showMP) withObject:nil afterDelay:delay];
+    }
+}
+
 - (void)applicationWillResignActive:(UIApplication *)application {
     [FileLogger log:@"%@ %@", self, NSStringFromSelector(_cmd)];    
   
@@ -447,22 +471,12 @@
     [[NSNotificationCenter defaultCenter] postNotificationName:@"ApplicationDidBecomeActive" object:nil];
     
     if (!_hasRecordedApplicationOpenedEvent) {
-        NSDictionary *properties = @{
-                                     @"connected_to_dotcom": @([[WordPressComApi sharedApi] hasCredentials]),
-                                     @"number_of_blogs" : @([Blog countWithContext:[self managedObjectContext]]) };
-        [WPMobileStats trackEventForSelfHostedAndWPCom:StatsEventAppOpened properties:properties];
+        [WPMobileStats trackEventForSelfHostedAndWPCom:StatsEventAppOpened];
     }
     
     // Clear notifications badge and update server
     [self setAppBadge];
     [[WordPressComApi sharedApi] syncPushNotificationInfo];
-    
-    // アプリが前面にもどってきたとき、トップメニューの半透明レイヤーを表示する。
-    UIViewController *detailViewController = self.panelNavigationController.detailViewController;
-    if( [detailViewController respondsToSelector:@selector(showOverView)] ) {
-        NSInteger delay = 1.00;
-        [detailViewController performSelector:@selector(showOverView) withObject:nil afterDelay:delay];
-    }
 }
 
 

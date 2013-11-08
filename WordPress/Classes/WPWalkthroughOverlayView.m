@@ -280,7 +280,8 @@ CGFloat const WPWalkthroughGrayOverlayMaxLabelWidth = 289.0;
     if (self.icon == WPWalkthroughGrayOverlayViewWarningIcon) {
         image = [UIImage imageNamed:@"icon-alert"];
     } else {
-        image = [UIImage imageNamed:@"icon-check-blue"];
+        //image = [UIImage imageNamed:@"icon-check-blue"];
+        image = [UIImage imageNamed:@"icon-check-hpbpad"];
     }
     [_logo setImage:image];
     [_logo sizeToFit];

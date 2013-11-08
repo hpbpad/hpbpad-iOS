@@ -8,6 +8,7 @@
 
 #import "PostViewController.h"
 #import "PostPreviewViewController.h"
+#import "PostSEOViewController.h"
 #import "NSString+XMLExtensions.h"
 #import "PanelNavigationConstants.h"
 
@@ -56,6 +57,10 @@
                                                                        style:UIBarButtonItemStyleBordered
                                                                       target:self
                                                                       action:@selector(showModalPreview)];
+    UIBarButtonItem *SEOButton = [[UIBarButtonItem alloc] initWithTitle:@"SEO" // TODO:localize
+                                                                       style:UIBarButtonItemStyleBordered
+                                                                      target:self
+                                                                      action:@selector(showModalSEO)];
     
     UIColor *buttonTintColor = [UIColor UIColorFromHex:0x464646];
     
@@ -101,8 +106,9 @@
         }
         
         UIBarButtonItem *spacer = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:nil];
-        self.toolbarItems = [NSArray arrayWithObjects:editButton, previewButton, spacer, deleteButton, nil];
-     
+        //self.toolbarItems = [NSArray arrayWithObjects:editButton, previewButton, spacer, deleteButton, nil];
+        self.toolbarItems = [NSArray arrayWithObjects:editButton, previewButton, SEOButton, spacer, deleteButton, nil]; //TODO:SEOはここに必要か
+        
         // When content is long enough to scroll the contentWebView will be enabled for user interaction. In this case,
         // touchesEnded: withEvent: will not be called.  Use a TapGestureRecognizer to detect taps in this case.
         // If the webView is not enabled for interations, the recognizer won't detect taps and so won't interefer with touchesEnded: withEvent:.
@@ -127,6 +133,8 @@
     [super viewWillAppear:animated];
 
     [self addPostObserver];
+    
+    [self hideTagsView];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
@@ -249,6 +257,20 @@
     return contentStr;
 }
 
+// 以外ではタグ入力欄を表示/非表示
+- (void)hideTagsView {
+    // 投稿タイプで判断する。postの場合のみ、タグ欄を表示する
+    BOOL hasTags = [self.post.postType isEqualToString:@"post"];
+    if(!hasTags){
+        // タクソノミー欄等を上につめる。
+        CGAffineTransform transform = CGAffineTransformMakeTranslation(0, -1 * self.tagsView.frame.size.height);
+        self.categoriesView.transform = transform;
+        self.contentView.transform = transform;
+        self.contentWebView.transform = transform;
+    }
+    [self.tagsView setHidden:!hasTags];
+}
+
 #pragma mark -
 #pragma mark ActionSheet Delegate Methods
 
@@ -303,6 +325,30 @@
     //nav.navigationBar.tintColor = [UIColor colorWithRed:31/256.0 green:126/256.0 blue:163/256.0 alpha:1.0];
     nav.navigationBar.topItem.title = NSLocalizedString(@"Preview", @"Post Editor / Preview screen title.");
 
+    UIBarButtonItem *c = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(dismissPreview)];
+    nav.navigationBar.topItem.leftBarButtonItem = c;
+    
+    [self presentModalViewController:nav animated:YES];
+}
+
+- (void)showModalSEO {
+    if (self.modalViewController) {
+        NSLog(@"Trying to show modal a second time: bad");
+        return;
+    }
+
+	[self checkForNewItem];
+    AbstractPost *postRevision = [self.apost createRevision];
+
+    PostSEOViewController *postSEOViewController = [[PostSEOViewController alloc] initWithPost:postRevision];
+
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:postSEOViewController];
+    nav.modalPresentationStyle = UIModalPresentationPageSheet;
+    nav.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
+    //nav.navigationBar.tintColor = [UIColor colorWithRed:31/256.0 green:126/256.0 blue:163/256.0 alpha:1.0];
+    //nav.navigationBar.topItem.title = NSLocalizedString(@"Preview", @"Post Editor / Preview screen title.");
+    nav.navigationBar.topItem.title = @"投稿SEO"; //TODO: localize
+    
     UIBarButtonItem *c = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(dismissPreview)];
     nav.navigationBar.topItem.leftBarButtonItem = c;
     
@@ -364,4 +410,9 @@
 }
 
 
+- (void)viewDidUnload {
+    [self setTagsView:nil];
+    [self setCategoriesView:nil];
+    [super viewDidUnload];
+}
 @end

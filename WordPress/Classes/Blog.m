@@ -343,11 +343,11 @@
 }
 
 - (NSString *)username {
-    return self.account.username;
+    return self.account.username ?: @"";
 }
 
 - (NSString *)password {
-    return self.account.password;
+    return self.account.password ?: @"";
 }
 
 #pragma mark -
@@ -1140,11 +1140,17 @@
 // サムネイル読み込み開始
 -(void)loadThumbnail {
     // webViewを生成してブログURLを読み込む。
-    NSString *urlString = [NSString stringWithFormat:@"http://%@",self.url];
+    NSString *urlString;
+    if([self.url hasPrefix:@"http"]){
+        urlString = self.url;
+    } else {
+        urlString = [NSString stringWithFormat:@"http://%@",self.url];
+    }
     NSURL *url = [NSURL URLWithString:urlString];
     NSURLRequest *request = [NSURLRequest requestWithURL:url];
-    CGFloat len = 1024.0f;
-    _webView = [[UIWebView alloc]initWithFrame:CGRectMake(-1*len, -1*len, len, len)];
+    CGFloat w = 1024.0f;
+    CGFloat h = 1090.0f;
+    _webView = [[UIWebView alloc]initWithFrame:CGRectMake(-1*w, -1*h, w, h)];
     _webView.delegate = (id)self;
     _webViewLoadingCount = 0;
     [_webView loadRequest:request];

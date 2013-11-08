@@ -609,7 +609,8 @@
             _menuView = [[UIView alloc] initWithFrame:CGRectMake(0.0f, 0.0, MENU_BUTTON_WIDTH, 30.0f)];
             
             //_menuButton = [[UIButton alloc] initWithFrame:CGRectMake(0, 0, 35.0f, 30.0f)];
-            _menuButton = [[UIButton alloc] initWithFrame:CGRectMake(0, -1, 36.0f, 32.0f)];
+            //_menuButton = [[UIButton alloc] initWithFrame:CGRectMake(0, -1, 36.0f, 32.0f)];
+            _menuButton = [[UIButton alloc] initWithFrame:CGRectMake(-8, -1, 45.0f, 32.0f)];
             [_menuButton setImage:[UIImage imageNamed:@"menuiconlong"] forState:UIControlStateNormal];
             [_menuButton setImage:[UIImage imageNamed:@"menuiconlong_on"] forState:UIControlStateHighlighted];
             //[_menuButton setImage:[UIImage imageNamed:@"navbar_toggle"] forState:UIControlStateNormal];

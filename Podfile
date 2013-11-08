@@ -17,6 +17,7 @@ pod 'NSObject-SafeExpectations', :podspec => 'https://raw.github.com/koke/NSObje
 pod 'Mixpanel'
 pod 'google-plus-ios-sdk', '~> 1.2'
 pod 'MGImageUtilities', :git => 'git://github.com/wordpress-mobile/MGImageUtilities.git'
+pod 'Quantcast-Measure'
 
 target :WordPressTest, :exclusive => true do
   pod 'OHHTTPStubs', '~> 1.1'
@@ -60,11 +61,16 @@ post_install do |installer|
         if build_files.length > 0
             build_files.each { |build_file|
                 settings = build_file.settings
-                compiler_flags = settings[compiler_flags_key]
-                compiler_flags = (compiler_flags.nil?) ?
-                    new_compiler_flags :
-                    (compiler_flags + " " + new_compiler_flags)
-                settings[compiler_flags_key] = compiler_flags
+                if settings.nil?
+                  # If we don't have settings for the file we create a new hash
+                  settings = Hash[compiler_flags_key, new_compiler_flags]
+                else
+                  compiler_flags = settings[compiler_flags_key]
+                  compiler_flags = (compiler_flags.nil?) ?
+                      new_compiler_flags :
+                      (compiler_flags + " " + new_compiler_flags)
+                  settings[compiler_flags_key] = compiler_flags
+                end
                 build_file.settings = settings
             }
         else

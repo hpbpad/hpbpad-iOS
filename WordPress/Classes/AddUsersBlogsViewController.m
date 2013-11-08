@@ -121,19 +121,6 @@
         WPcomLoginViewController *wpComLogin = [[WPcomLoginViewController alloc] initWithStyle:UITableViewStyleGrouped];
         [self.navigationController presentModalViewController:wpComLogin animated:YES];
 	}
-	else if(isWPcom) {
-		if (usersBlogs == nil) {
-			[self refreshBlogs];
-		} else if([usersBlogs count] == 0){
-            [self refreshBlogs]; //Maybe just returning from creating a blog
-            [self hideNoBlogsView];
-        }
-	}
-	else {
-        if (usersBlogs == nil) {
-            [self refreshBlogs];
-        }
-	}
 	
 	if(IS_IPAD == YES) {
 		topAddSelectedButton = [[UIBarButtonItem alloc] initWithTitle:NSLocalizedString(@"Add Selected", @"") 
@@ -149,6 +136,26 @@
 	buttonAddSelected.enabled = FALSE;
 	
 	[self checkAddSelectedButtonStatus];
+}
+
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    if(isWPcom) {
+		if((usersBlogs == nil) && ([[NSUserDefaults standardUserDefaults] objectForKey:@"WPcomUsersBlogs"] != nil)) {
+			usersBlogs = [[NSUserDefaults standardUserDefaults] objectForKey:@"WPcomUsersBlogs"];
+		}
+		else if(usersBlogs == nil) {
+			[self refreshBlogs];
+		} else if([usersBlogs count] == 0){
+            [self refreshBlogs]; //Maybe just returning from creating a blog
+            [self hideNoBlogsView];
+        }
+	}
+	else {
+        if (usersBlogs == nil) {
+            [self refreshBlogs];
+        }
+	}
 }
 
 - (void)viewDidUnload {
@@ -380,8 +387,11 @@
 
 - (void)refreshBlogs {
     
-    if(![ReachabilityUtils isInternetReachable]) {
-        [ReachabilityUtils showAlertNoInternetConnectionWithDelegate:self];
+    if (![ReachabilityUtils isInternetReachable]) {
+        __weak AddUsersBlogsViewController *weakSelf = self;
+        [ReachabilityUtils showAlertNoInternetConnectionWithRetryBlock:^{
+            [weakSelf refreshBlogs];
+        }];
         hasCompletedGetUsersBlogs = YES; 
         [self.tableView reloadData];
         return;
@@ -539,26 +549,14 @@
 
 - (void)alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex {
     if (buttonIndex == 0) {
-        if (alertView.tag == 1) {
-            HelpViewController *helpViewController = [[HelpViewController alloc] init];
-            
-            if (IS_IPAD) {
-                helpViewController.isBlogSetup = YES;
-                [self.navigationController pushViewController:helpViewController animated:YES];
-            }
-            else
-                [appDelegate.navigationController presentModalViewController:helpViewController animated:YES];
-            
+        HelpViewController *helpViewController = [[HelpViewController alloc] init];
+
+        if (IS_IPAD) {
+            helpViewController.isBlogSetup = YES;
+            [self.navigationController pushViewController:helpViewController animated:YES];
         }
-    } else {
-        if (alertView.tag == 1) {
-            //OK
-        } else {
-            // Retry
-            hasCompletedGetUsersBlogs = NO; 
-            [self.tableView reloadData];
-            [self performSelector:@selector(refreshBlogs) withObject:nil afterDelay:0.1]; // Short delay so tableview can redraw.
-        }
+        else
+            [appDelegate.navigationController presentModalViewController:helpViewController animated:YES];
     }
 
     if (failureAlertView == alertView) {

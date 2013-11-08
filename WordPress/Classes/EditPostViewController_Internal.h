@@ -10,6 +10,7 @@
 #import "PostSettingsViewController.h"
 #import "PostMediaViewController.h"
 #import "PostPreviewViewController.h"
+#import "PostSEOViewController.h"
 
 extern NSString *const EditPostViewControllerDidAutosaveNotification;
 extern NSString *const EditPostViewControllerAutosaveDidFailNotification;
@@ -18,6 +19,7 @@ extern NSString *const EditPostViewControllerAutosaveDidFailNotification;
 @property (nonatomic, strong) PostSettingsViewController *postSettingsViewController;
 @property (nonatomic, strong) PostMediaViewController *postMediaViewController;
 @property (nonatomic, strong) PostPreviewViewController *postPreviewViewController;
+@property (nonatomic, strong) PostSEOViewController *postSEOViewController;
 @property (nonatomic, assign) EditPostViewControllerMode editMode;
 @property (nonatomic, strong) AbstractPost *apost;
 @property (readonly) BOOL hasChanges;

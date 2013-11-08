@@ -52,6 +52,7 @@ NSTimeInterval const WPTableViewControllerRefreshTimeout = 300; // 5 minutes
     BOOL _animatingRemovalOfModerationSwipeView;
     BOOL didPromptForCredentials;
     BOOL _isSyncing;
+    BOOL _isLoadingMore;
     BOOL didPlayPullSound;
     BOOL didTriggerRefresh;
     CGPoint savedScrollOffset;
@@ -136,6 +137,9 @@ NSTimeInterval const WPTableViewControllerRefreshTimeout = 300; // 5 minutes
         [self.tableView scrollRectToVisible:CGRectMake(savedScrollOffset.x, savedScrollOffset.y, 0.0, 0.0) animated:NO];
     } else {
         [self.tableView scrollRectToVisible:CGRectMake(0.0, contentSize.height, 0.0, 0.0) animated:NO];
+    }
+    if ([self.tableView indexPathForSelectedRow]) {
+        [self.tableView deselectRowAtIndexPath:[self.tableView indexPathForSelectedRow] animated:YES];
     }
 }
 
@@ -315,13 +319,19 @@ NSTimeInterval const WPTableViewControllerRefreshTimeout = 300; // 5 minutes
     // Are we approaching the end of the table?
     if ((indexPath.section + 1 == [self numberOfSectionsInTableView:tableView]) && (indexPath.row + 4 >= [self tableView:tableView numberOfRowsInSection:indexPath.section]) && [self tableView:tableView numberOfRowsInSection:indexPath.section] > 10) {
         // Only 3 rows till the end of table
-        if (![self isSyncing] && [self hasMoreContent]) {
-            [_activityFooter startAnimating];
-            [self loadMoreWithSuccess:^{
-                [_activityFooter stopAnimating];
-            } failure:^(NSError *error) {
-                [_activityFooter stopAnimating];
-            }];
+        
+        if ([self hasMoreContent] && !_isLoadingMore) {
+            if (![self isSyncing] || self.incrementalLoadingSupported) {
+                [_activityFooter startAnimating];
+                _isLoadingMore = YES;
+                [self loadMoreWithSuccess:^{
+                    _isLoadingMore = NO;
+                    [_activityFooter stopAnimating];
+                } failure:^(NSError *error) {
+                    _isLoadingMore = NO;
+                    [_activityFooter stopAnimating];
+                }];
+            }
         }
     }
 }
@@ -498,12 +508,17 @@ NSTimeInterval const WPTableViewControllerRefreshTimeout = 300; // 5 minutes
 }
 
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
+    _isScrolling = YES;
     if (self.panelNavigationController) {
         [self.panelNavigationController viewControllerWantsToBeFullyVisible:self];
     }
     if (self.swipeActionsEnabled) {
         [self removeSwipeView:YES];
     }
+}
+
+- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
+    _isScrolling = NO;
 }
 
 

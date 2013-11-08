@@ -108,7 +108,8 @@ const CGFloat kPostTypeWidth = 130.0;
 // Labelの調整。長いので分けた。
 - (void) makeLabel:(UILabel *)label {
     label.textAlignment = UITextAlignmentCenter;
-    label.textColor = [UIColor grayColor];
+    //label.textColor = [UIColor grayColor];
+    label.textColor = [UIColor colorWithRed:148.0f/255.0f green:147.0f/255.0f blue:147.0f/255.0f alpha:1.0f];
     label.backgroundColor = [UIColor clearColor];
     CALayer* layer = label.layer;
     CALayer* rightBorder = [CALayer layer];

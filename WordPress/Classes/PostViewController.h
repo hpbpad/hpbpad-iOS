@@ -18,6 +18,8 @@
 @property (nonatomic, strong) IBOutlet UILabel *titleLabel, *tagsLabel, *categoriesLabel;
 @property (nonatomic, strong) IBOutlet UITextView *contentView;
 @property (nonatomic, strong) IBOutlet UIWebView *contentWebView;
+@property (nonatomic, strong) IBOutlet UIView *tagsView;
+@property (nonatomic, strong) IBOutlet UIView *categoriesView;
 @property (nonatomic, strong) IBOutlet AbstractPost *apost;
 @property (nonatomic, weak) Post *post;
 @property (nonatomic, weak) Blog * blog;

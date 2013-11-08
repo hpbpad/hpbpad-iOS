@@ -37,6 +37,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     IBOutlet UITextField *textViewPlaceHolderField;
     IBOutlet UIBarButtonItem *writeButton;
     IBOutlet UIBarButtonItem *previewButton;
+    IBOutlet UIBarButtonItem *seoButton;
     IBOutlet UIBarButtonItem *attachmentButton;
     IBOutlet UIBarButtonItem *createCategoryBarButtonItem;
     IBOutlet UIImageView *tabPointer;
@@ -121,7 +122,13 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
         self.postPreviewViewController.postDetailViewController = self;
         [self addChildViewController:self.postPreviewViewController];
     }
-
+    
+    if (!self.postSEOViewController) {
+        self.postSEOViewController = [[PostSEOViewController alloc] initWithPost:self.apost];
+        self.postSEOViewController.postDetailViewController = self;
+        [self addChildViewController:self.postSEOViewController];
+    }
+    
     if (!self.postMediaViewController) {
         self.postMediaViewController = [[PostMediaViewController alloc] initWithPost:self.apost];
         self.postMediaViewController.postDetailViewController = self;
@@ -131,6 +138,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     self.postSettingsViewController.view.frame = editView.frame;
     self.postMediaViewController.view.frame = editView.frame;
     self.postPreviewViewController.view.frame = editView.frame;
+    self.postSEOViewController.view.frame = editView.frame;
     
     self.title = [self editorTitle];
 
@@ -151,7 +159,8 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
 		//no video icon for older devices
 		NSMutableArray *toolbarItems = [NSMutableArray arrayWithArray:self.toolbar.items];
 		
-		[toolbarItems removeObjectAtIndex:5];
+		//[toolbarItems removeObjectAtIndex:5];
+		[toolbarItems removeObjectAtIndex:6]; //SEOボタンの分ずれる
 		[self.toolbar setItems:toolbarItems];
 	}
 	
@@ -167,6 +176,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     writeButton.tintColor = color;
     self.settingsButton.tintColor = color;
     previewButton.tintColor = color;
+    seoButton.tintColor = color;
     attachmentButton.tintColor = color;
     self.photoButton.tintColor = color;
     self.movieButton.tintColor = color;
@@ -206,7 +216,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     
     // 「投稿」以外ではタグ入力欄を非表示。タクソノミー入力欄を上につめる。
     BOOL hasTags = [self.post.postType isEqualToString:@"post"];
-    if(!hasTags){
+    if(!hasTags && ![self isPage]){
         CGAffineTransform transform = CGAffineTransformMakeTranslation(0, -1 * self.tagsView.frame.size.height);
         self.categoriesView.transform = transform;
         textView.transform = transform;
@@ -220,6 +230,14 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     
 	[titleTextField resignFirstResponder];
 	[textView resignFirstResponder];
+}
+
+- (void)didRotateFromInterfaceOrientation:(UIInterfaceOrientation)fromInterfaceOrientation
+{
+    WPFLogMethod();
+    [super didRotateFromInterfaceOrientation:fromInterfaceOrientation];
+
+    [self.postSEOViewController notifyRotatedViewFrame:self.view.frame];
 }
 
 - (NSString *)statsPrefix
@@ -237,6 +255,10 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
 
 #pragma mark -
 #pragma mark Instance Methods
+
+- (BOOL)isPage {
+    return NO;
+}
 
 - (BOOL)shouldEnableMediaTab {
     return ([[self.apost.media filteredSetUsingPredicate:[NSPredicate predicateWithFormat:@"mediaType != 'featured'"]] count] > 0) ;
@@ -273,24 +295,35 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
 		writeButton.enabled = NO;
 		self.settingsButton.enabled = YES;
 		previewButton.enabled = YES;
+		seoButton.enabled = YES;
         attachmentButton.enabled = [self shouldEnableMediaTab];
         
     } else if ([newView isEqual:self.postSettingsViewController.view]) {
 		writeButton.enabled = YES;
 		self.settingsButton.enabled = NO;
 		previewButton.enabled = YES;
+		seoButton.enabled = YES;
         attachmentButton.enabled = [self shouldEnableMediaTab];
         
     } else if ([newView isEqual:self.postPreviewViewController.view]) {
 		writeButton.enabled = YES;
 		self.settingsButton.enabled = YES;
 		previewButton.enabled = NO;
+		seoButton.enabled = YES;
+        attachmentButton.enabled = [self shouldEnableMediaTab];
+        
+    } else if ([newView isEqual:self.postSEOViewController.view]) {
+		writeButton.enabled = YES;
+		self.settingsButton.enabled = YES;
+		previewButton.enabled = YES;
+		seoButton.enabled = NO;
         attachmentButton.enabled = [self shouldEnableMediaTab];
         
 	} else if ([newView isEqual:self.postMediaViewController.view]) {
 		writeButton.enabled = YES;
 		self.settingsButton.enabled = YES;
 		previewButton.enabled = YES;
+		seoButton.enabled = YES;
 		attachmentButton.enabled = NO;
 	}
 	
@@ -305,6 +338,8 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
 		pointerFrame.origin.x = 61;
     } else if ([newView isEqual:self.postPreviewViewController.view]) {
 		pointerFrame.origin.x = 101;
+    } else if ([newView isEqual:self.postSEOViewController.view]) {
+		pointerFrame.origin.x = 141;
 	} else if ([newView isEqual:self.postMediaViewController.view]) {
 		if (IS_IPAD) {
 			if ([self.postMediaViewController isDeviceSupportVideo])
@@ -370,6 +405,13 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
         [self switchToView:self.postPreviewViewController.view];
     }
 	self.navigationItem.title = NSLocalizedString(@"Preview", @"Post Editor / Preview screen title.");
+}
+- (IBAction)switchToSEO {
+    if (currentView != self.postSEOViewController.view) {
+        [WPMobileStats flagProperty:StatsPropertyPostDetailClickedPreview forEvent:[self formattedStatEventString:StatsEventPostDetailClosedEditor]];//TODO:stats追加
+        [self switchToView:self.postSEOViewController.view];
+    }
+	self.navigationItem.title = @"投稿SEO";//TODO:localize
 }
 
 - (IBAction)addVideo:(id)sender {
@@ -577,7 +619,9 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     if (selContext == kSelectionsCategoriesContext) {
         NSLog(@"selected categories: %@", selectedObjects);
         NSLog(@"post: %@", self.post);
-        self.post.terms = [NSMutableSet setWithArray:selectedObjects];
+        NSMutableSet *terms = [self.post mutableSetValueForKey:@"terms"];
+        [terms removeAllObjects];
+        [terms addObjectsFromArray:selectedObjects];
         [categoriesButton setTitle:[NSString decodeXMLCharactersIn:[self.post categoriesText]] forState:UIControlStateNormal];
     }
 
@@ -647,6 +691,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     }
     
     if (_isAutosaving) {
+        WPFLog(@"Canceling all auto save operations as user is about to force a save");
         // Cancel all blog network operations since the user tapped the save/publish button
         [self.apost.blog.api cancelAllHTTPOperations];
     }
@@ -655,6 +700,8 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
 }
 
 - (void)savePost:(BOOL)upload{
+    WPFLogMethod();
+    
     [WPMobileStats trackEventForWPComWithSavedProperties:[self formattedStatEventString:StatsEventPostDetailClosedEditor]];
     
     [self logSavePostStats];
@@ -1028,6 +1075,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
         _linkHelperAlertView = nil;
     } else if (alertView.tag == EditPostViewControllerAlertTagFailedMedia) {
         if (buttonIndex == 1) {
+            WPFLog(@"Saving post even after some media failed to upload");
             [self savePost:YES];
         } else {
             [self switchToMedia];
@@ -1072,6 +1120,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
                 if ((![self.apost hasRemote] || _isAutosaved) && [self.apost.status isEqualToString:@"publish"]) {
                     self.apost.status = @"draft";
                 }
+                WPFLog(@"Saving post as a draft after user initially attempted to cancel");
                 [self savePost:YES];
 			}
         }
@@ -1586,6 +1635,7 @@ NSString *const EditPostViewControllerAutosaveDidFailNotification = @"EditPostVi
     attachmentButton = nil;
     [self setSettingsButton:nil];
     textView = nil;
+    seoButton = nil;
     [super viewDidUnload];
 }
 @end

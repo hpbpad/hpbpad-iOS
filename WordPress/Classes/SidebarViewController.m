@@ -17,7 +17,6 @@
 #import "PostsViewController.h"
 #import "PagesViewController.h"
 #import "CommentsViewController.h"
-#import "WPReaderViewController.h"
 #import "SettingsViewController.h"
 #import "StatsWebViewController.h"
 #import "PanelNavigationConstants.h"
@@ -30,6 +29,7 @@
 #import "SoundUtil.h"
 #import "ReaderPostsViewController.h"
 #import "GeneralWalkthroughViewController.h"
+#import "ViewAdminButton.h"
 #import "TopMenuViewController.h"
 #import "PostList.h"
 
@@ -40,7 +40,8 @@
 // Max width for right view (currently : size of the sidebar_comment_bubble image)
 #define SIDEBAR_CELL_ACCESSORY_MAX_WIDTH 54.f
 #define SIDEBAR_BGCOLOR [UIColor colorWithWhite:0.921875f alpha:1.0f];
-#define HEADER_HEIGHT 42.f
+//#define HEADER_HEIGHT 42.f
+#define HEADER_HEIGHT 43.f
 #define DEFAULT_ROW_HEIGHT 48
 //#define NUM_ROWS 6
 #define NUM_ROWS 5
@@ -107,9 +108,11 @@
     self.tableView.dataSource = self;
     self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
     self.tableView.showsVerticalScrollIndicator = NO;
-    self.view.backgroundColor = [UIColor colorWithPatternImage:[UIImage imageNamed:@"sidebar_bg"]];
-
-    utililtyView.backgroundColor = [UIColor colorWithPatternImage:[UIImage imageNamed:@"sidebar_footer_bg"]];
+    //self.view.backgroundColor = [UIColor colorWithPatternImage:[UIImage imageNamed:@"sidebar_bg"]];
+    self.view.backgroundColor = [UIColor colorWithRed:49.0f/255.0f green:47.0f/255.0f blue:47.0f/255.0f alpha:255.0f/255.0f];
+    
+    //utililtyView.backgroundColor = [UIColor colorWithPatternImage:[UIImage imageNamed:@"sidebar_footer_bg"]];
+    utililtyView.backgroundColor = [UIColor colorWithPatternImage:[UIImage imageNamed:@"sidebar_bg"]];
     utililtyView.layer.shadowRadius = 10.0f;
     utililtyView.layer.shadowOpacity = 0.8f;
     utililtyView.layer.shadowColor = [[UIColor blackColor] CGColor];
@@ -255,12 +258,15 @@
 }
 
 - (NSInteger)topSectionRowCount {
+    return 0;
+    /* // 購読・通知は削除
     if ([WPAccount defaultWordPressComAccount]) {
         // reader and notifications
         return 2;
     } else {
         return 0;
     }
+     */
 }
 
 // 表示する行数を取得する
@@ -506,6 +512,9 @@ NSLog(@"%@", self.sectionInfoArray);
     // トップメニューのViewをセット
     UIViewController *detailViewController = [[TopMenuViewController alloc] initWithNibName:@"TopMenuViewController" bundle:nil];
     [self.panelNavigationController setDetailViewController:detailViewController closingSidebar:YES];
+    
+    utililtyView.hidden = NO;
+    settingsButton.hidden = NO;
 }
 
 - (void)selectNotificationsRow {
@@ -522,6 +531,15 @@ NSLog(@"%@", self.sectionInfoArray);
     }
 }
 
+- (void)viewAdmin:(UIControl *)sender
+{
+    [WPMobileStats incrementProperty:StatsPropertySidebarSiteClickedViewAdmin forEvent:StatsEventAppClosed];
+
+    Blog *blog = [self.resultsController objectAtIndexPath:[NSIndexPath indexPathForRow:(sender.tag - 1) inSection:0]];
+    NSString *dashboardUrl = [blog.xmlrpc stringByReplacingOccurrencesOfString:@"xmlrpc.php" withString:@"wp-admin/"];
+    [[UIApplication sharedApplication] openURL:[NSURL URLWithString:dashboardUrl]];
+}
+
 #pragma mark - Quick Photo Methods
 
 - (void)quickPhotoButtonViewTapped:(QuickPhotoButtonView *)sender {
@@ -536,6 +554,8 @@ NSLog(@"%@", self.sectionInfoArray);
     
 	UIActionSheet *actionSheet = nil;
     if ([UIImagePickerController isSourceTypeAvailable:UIImagePickerControllerSourceTypeCamera]) {
+        
+        /*
         if ([[CameraPlusPickerManager sharedManager] cameraPlusPickerAvailable]) {
             actionSheet = [[UIActionSheet alloc] initWithTitle:@"" 
                                                       delegate:self 
@@ -549,6 +569,13 @@ NSLog(@"%@", self.sectionInfoArray);
                                         destructiveButtonTitle:nil 
                                              otherButtonTitles:NSLocalizedString(@"Add Photo from Library", @""),NSLocalizedString(@"Take Photo", @""),nil];            
         }
+        */
+            actionSheet = [[UIActionSheet alloc] initWithTitle:@"" 
+                                                      delegate:self 
+                                             cancelButtonTitle:NSLocalizedString(@"Cancel", @"") 
+                                        destructiveButtonTitle:nil 
+                                             otherButtonTitles:NSLocalizedString(@"Add Photo from Library", @""),NSLocalizedString(@"Take Photo", @""),nil];
+        
 	} else {
         [self showQuickPhoto:UIImagePickerControllerSourceTypePhotoLibrary useCameraPlus:NO withImage:nil];
         return;
@@ -571,12 +598,14 @@ NSLog(@"%@", self.sectionInfoArray);
 
 - (void)showQuickPhoto:(UIImagePickerControllerSourceType)sourceType useCameraPlus:(BOOL)useCameraPlus {
     if (useCameraPlus) {
+        /*
         CameraPlusPickerManager *picker = [CameraPlusPickerManager sharedManager];
         picker.callbackURLProtocol = @"hpbpad";
         picker.maxImages = 1;
         picker.imageSize = 4096;
         CameraPlusPickerMode mode = (sourceType == UIImagePickerControllerSourceTypeCamera) ? CameraPlusPickerModeShootOnly : CameraPlusPickerModeLightboxOnly;
         [picker openCameraPlusPickerWithMode:mode];
+         */
     } else {
         [self showQuickPhoto:sourceType useCameraPlus:useCameraPlus withImage:nil];
     }
@@ -767,6 +796,7 @@ NSLog(@"%@", self.sectionInfoArray);
     if (cell == nil) {
         cell = [[SidebarTableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:CellIdentifier];
     }
+    [[cell.contentView subviews] makeObjectsPerformSelector:@selector(removeFromSuperview)];
     
     NSString *title = nil;
       
@@ -792,15 +822,17 @@ NSLog(@"%@", self.sectionInfoArray);
             UIImage *image = [UIImage imageNamed:@"sidebar_posts"];
             cell.imageView.image = image;
             
-            // 画像サイズを揃える
+            /*
+             // 画像サイズを揃える
             UIGraphicsBeginImageContext(CGSizeMake(32, 33));
             [cell.imageView drawRect:CGRectMake(0, 0, 32, 33)];
             UIImage *icon = UIGraphicsGetImageFromCurrentImageContext();
             UIGraphicsEndImageContext();
             cell.imageView.image = icon;
-            
+             */
             UIButton *addButton = [[UIButton alloc] initWithFrame:CGRectMake(0, 0, SIDEBAR_CELL_ACCESSORY_MAX_WIDTH, SIDEBAR_CELL_SECONDARY_HEIGHT)];
             [addButton setImage:[UIImage imageNamed:@"sidebar_icon_add"] forState:UIControlStateNormal];
+            [addButton setImage:[UIImage imageNamed:@"sidebar_icon_add_on"] forState:UIControlStateHighlighted];
             [addButton addTarget:self action:@selector(quickAddNewPost:) forControlEvents:UIControlEventTouchUpInside];
             cell.accessoryView = addButton;
         }
@@ -813,6 +845,7 @@ NSLog(@"%@", self.sectionInfoArray);
                 cell.imageView.image = [UIImage imageNamed:@"sidebar_pages"];
                 UIButton *addButton = [[UIButton alloc] initWithFrame:CGRectMake(0, 0, SIDEBAR_CELL_ACCESSORY_MAX_WIDTH, SIDEBAR_CELL_SECONDARY_HEIGHT)];
                 [addButton setImage:[UIImage imageNamed:@"sidebar_icon_add"] forState:UIControlStateNormal];
+                [addButton setImage:[UIImage imageNamed:@"sidebar_icon_add_on"] forState:UIControlStateHighlighted];
                 [addButton addTarget:self action:@selector(quickAddNewPost:) forControlEvents:UIControlEventTouchUpInside];
                 cell.accessoryView = addButton;
 
@@ -840,8 +873,17 @@ NSLog(@"%@", self.sectionInfoArray);
             }
             case 4:
             {
-                title = NSLocalizedString(@"View Admin", @"Menu item to load the dashboard in a an in-app web view");
+                title = NSLocalizedString(@"View Admin", @"Menu item to view the site in a an in-app web view");
                 cell.imageView.image = [UIImage imageNamed:@"sidebar_dashboard"];
+                /*
+                ViewAdminButton *viewAdminButton = [[ViewAdminButton alloc] initWithFrame:CGRectMake(0.0f, 0.0f, SIDEBAR_WIDTH, DEFAULT_ROW_HEIGHT)];
+                [viewAdminButton setTitle:NSLocalizedString(@"View Admin", @"Menu item to load the dashboard in a an in-app web view") forState:UIControlStateNormal];
+                [viewAdminButton setTag:indexPath.section];
+                [viewAdminButton addTarget:self action:@selector(viewAdmin:) forControlEvents:UIControlEventTouchUpInside];
+                [cell.contentView addSubview:viewAdminButton];
+                title = nil;
+                cell.imageView.image = nil;
+                 */
                 break;
             }
             default:
@@ -955,46 +997,6 @@ NSLog(@"%@", self.sectionInfoArray);
     }
 }
 
-
-/*
-// Override to support conditional editing of the table view.
-- (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    // Return NO if you do not want the specified item to be editable.
-    return YES;
-}
-*/
-
-/*
-// Override to support editing the table view.
-- (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    if (editingStyle == UITableViewCellEditingStyleDelete) {
-        // Delete the row from the data source
-        [tableView deleteRowsAtIndexPaths:[NSArray arrayWithObject:indexPath] withRowAnimation:UITableViewRowAnimationFade];
-    }   
-    else if (editingStyle == UITableViewCellEditingStyleInsert) {
-        // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-    }   
-}
-*/
-
-/*
-// Override to support rearranging the table view.
-- (void)tableView:(UITableView *)tableView moveRowAtIndexPath:(NSIndexPath *)fromIndexPath toIndexPath:(NSIndexPath *)toIndexPath
-{
-}
-*/
-
-/*
-// Override to support conditional rearranging of the table view.
-- (BOOL)tableView:(UITableView *)tableView canMoveRowAtIndexPath:(NSIndexPath *)indexPath
-{
-    // Return NO if you do not want the item to be re-orderable.
-    return YES;
-}
-*/
-
 #pragma mark - Table view delegate
 
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
@@ -1043,13 +1045,12 @@ NSLog(@"%@", self.sectionInfoArray);
             NotificationsViewController *notificationsViewController = [[NotificationsViewController alloc] init];
             detailViewController = notificationsViewController;
         }
-
     } else {
         SectionInfo *sectionInfo = [self.sectionInfoArray objectAtIndex:indexPath.section - 1];
         
         Blog *blog = [self.resultsController objectAtIndexPath:[NSIndexPath indexPathForRow:(indexPath.section - 1) inSection:0]];
         NSString *blogURL = @"";
-        NSString *dashboardURL = @"";
+        NSString* dashboardURL;
         
         Class controllerClass = nil;
         //did user select the same item, but for a different blog? If so then just update the data in the view controller.
@@ -1110,7 +1111,7 @@ NSLog(@"%@", self.sectionInfoArray);
             case 4:
                 [WPMobileStats incrementProperty:StatsPropertySidebarSiteClickedViewAdmin forEvent:StatsEventAppClosed];
                 
-                 dashboardURL = [blog.xmlrpc stringByReplacingOccurrencesOfString:@"xmlrpc.php" withString:@"wp-admin/"];
+                dashboardURL = [blog.xmlrpc stringByReplacingOccurrencesOfString:@"xmlrpc.php" withString:@"wp-admin/"];
                 //dashboard already selected
                 if ([self.panelNavigationController.detailViewController isMemberOfClass:[WPWebViewController class]] 
                     && 
@@ -1142,7 +1143,7 @@ NSLog(@"%@", self.sectionInfoArray);
         if (IS_IPAD) {
             [SoundUtil playSwipeSound];
         }
-        
+
         [[NSNotificationCenter defaultCenter] postNotificationName:kSelectedBlogChanged 
                                                             object:nil 
                                                           userInfo:[NSDictionary dictionaryWithObject:blog forKey:@"blog"]];
@@ -1175,7 +1176,13 @@ NSLog(@"%@", self.sectionInfoArray);
                 [detailViewController performSelector:@selector(setPostsWithIndex:) withObject:postTypeIndex];
             }
         }
-    } 
+    }
+
+    self.currentIndexPath = indexPath;
+
+    dict = [NSDictionary dictionaryWithObjectsAndKeys:[NSNumber numberWithInteger:indexPath.row], @"row", [NSNumber numberWithInteger:indexPath.section], @"section", nil];
+    [[NSUserDefaults standardUserDefaults] setObject:dict forKey:@"kSelectedSidebarIndexDictionary"];
+    [NSUserDefaults resetStandardUserDefaults];
 
     if (detailViewController) {
         [self.panelNavigationController setDetailViewController:detailViewController closingSidebar:closingSidebar];

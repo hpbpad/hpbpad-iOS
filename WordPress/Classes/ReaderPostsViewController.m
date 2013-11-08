@@ -25,7 +25,10 @@
 #import "WPAccount.h"
 #import "WPTableImageSource.h"
 #import "WPInfoView.h"
+#import "WPCookie.h"
+#import "NSString+Helpers.h"
 
+static CGFloat const ScrollingFastVelocityThreshold = 30.f;
 NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedNativeFriendFinder";
 
 @interface ReaderPostsViewController ()<ReaderTopicsDelegate, ReaderTextFormDelegate, WPTableImageSourceDelegate> {
@@ -34,6 +37,8 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
     WPTableImageSource *_featuredImageSource;
 	CGFloat keyboardOffset;
     NSInteger _rowsSeen;
+    BOOL _isScrollingFast;
+    CGFloat _lastOffset;
 }
 
 //@property (nonatomic, strong) NSFetchedResultsController *resultsController;
@@ -47,6 +52,7 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 - (void)handleReblogButtonTapped:(id)sender;
 - (void)showReblogForm;
 - (void)hideReblogForm;
+- (void)syncItemsWithSuccess:(void (^)())success failure:(void (^)(NSError *))failure;
 - (void)onSyncSuccess:(AFHTTPRequestOperation *)operation response:(id)responseObject;
 - (void)handleKeyboardDidShow:(NSNotification *)notification;
 - (void)handleKeyboardWillHide:(NSNotification *)notification;
@@ -61,6 +67,8 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 	// (at least for the first time). We'll have DTCoreText prime its font cache here so things are ready
 	// for the detail view, and avoid a perceived lag. 
 	[DTCoreTextFontDescriptor fontDescriptorWithFontAttributes:nil];
+    
+    [AFImageRequestOperation addAcceptableContentTypes:[NSSet setWithObject:@"image/jpg"]];
 }
 
 #pragma mark - Life Cycle methods
@@ -76,6 +84,7 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 		// This is a convenient place to check for the user's blogs and primary blog for reblogging.
 		_hasMoreContent = YES;
 		self.infiniteScrollEnabled = YES;
+        self.incrementalLoadingSupported = YES;
 		[self fetchBlogsAndPrimaryBlog];
 	}
 	return self;
@@ -84,7 +93,6 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 
 - (void)viewDidLoad {
 	[super viewDidLoad];
-
 
     CGFloat maxWidth = self.tableView.bounds.size.width;
     if (IS_IPHONE) {
@@ -152,7 +160,15 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 	if (_isShowingReblogForm) {
 		[self showReblogForm];
 	}
-	
+
+    [WPMobileStats trackEventForWPCom:StatsEventReaderOpened properties:[self categoryPropertyForStats]];
+    [WPMobileStats pingWPComStatsEndpoint:@"home_page"];
+    [WPMobileStats logQuantcastEvent:@"newdash.home_page"];
+    [WPMobileStats logQuantcastEvent:@"mobile.home_page"];
+    if ([self isCurrentCategoryFreshlyPressed]) {
+        [WPMobileStats logQuantcastEvent:@"newdash.freshly"];
+        [WPMobileStats logQuantcastEvent:@"mobile.freshly"];
+    }
 }
 
 
@@ -164,6 +180,7 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 	self.panelNavigationController.delegate = self;
 	
 	self.title = [[[ReaderPost currentTopic] objectForKey:@"title"] capitalizedString];
+    [self loadImagesForVisibleRows];
 	
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleKeyboardDidShow:) name:UIKeyboardWillShowNotification object:nil];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleKeyboardWillHide:) name:UIKeyboardWillHideNotification object:nil];
@@ -217,6 +234,9 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 
 - (void)didRotateFromInterfaceOrientation:(UIInterfaceOrientation)fromInterfaceOrientation {
     [super didRotateFromInterfaceOrientation:fromInterfaceOrientation];
+    // After rotation, visible images might be scaled up/down
+    // Force them to reload so they're pixel perfect
+    [self loadImagesForVisibleRows];
 }
 
 #pragma mark - Instance Methods
@@ -391,7 +411,7 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
             if (image) {
                 [cell setFeaturedImage:image];
             } else {
-                [_featuredImageSource fetchImageForURL:imageURL withSize:imageSize indexPath:indexPath];
+                [_featuredImageSource fetchImageForURL:imageURL withSize:imageSize indexPath:indexPath isPrivate:post.isPrivate];
             }
         }
     }
@@ -411,15 +431,21 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 
 #pragma mark - UIScrollView Delegate Methods
 
-- (void)scrollViewWillEndDragging:(UIScrollView *)scrollView withVelocity:(CGPoint)velocity targetContentOffset:(inout CGPoint *)targetContentOffset {
-    // Instead of loading images only when scrolling stops, start loading them when
-    // the scroll view starts decelerating, if it's not going too fast
-    if (fabs(velocity.y) <= 2.f) {
-        [self loadImagesForVisibleRows];
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    CGFloat offset = self.tableView.contentOffset.y;
+    // We just take a diff from the last known offset, as the approximation is good enough
+    CGFloat velocity = fabsf(offset - _lastOffset);
+    if (velocity > ScrollingFastVelocityThreshold && self.isScrolling) {
+        _isScrollingFast = YES;
+    } else {
+        _isScrollingFast = NO;
     }
+    _lastOffset = offset;
 }
 
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
+    [super scrollViewDidEndDecelerating:scrollView];
+    _isScrollingFast = NO;
     [self loadImagesForVisibleRows];
 
 	NSIndexPath *selectedIndexPath = [self.tableView indexPathForSelectedRow];
@@ -551,21 +577,8 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 	
 	ReaderPost *post = (ReaderPost *)[self.resultsController objectAtIndexPath:indexPath];
 	[cell configureCell:post];
-    if (post.featuredImageURL) {
-        NSURL *imageURL = post.featuredImageURL;
-        CGSize imageSize = cell.cellImageView.bounds.size;
-        if (CGSizeEqualToSize(imageSize, CGSizeZero)) {
-            imageSize.width = self.tableView.bounds.size.width;
-            imageSize.height = round(imageSize.width * 0.66f);
-        }
-        UIImage *image = [_featuredImageSource imageForURL:imageURL withSize:imageSize];
-        if (image) {
-            [cell setFeaturedImage:image];
-        } else if (!self.tableView.isDragging && !self.tableView.isDecelerating) {
-            [_featuredImageSource fetchImageForURL:imageURL withSize:imageSize indexPath:indexPath];
-        }
-    }
-	
+    [self setImageForPost:post forCell:cell indexPath:indexPath];
+
     CGSize imageSize = cell.avatarImageView.bounds.size;
     UIImage *image = [post cachedAvatarWithSize:imageSize];
     if (image) {
@@ -579,6 +592,23 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
     }
 }
 
+- (void)setImageForPost:(ReaderPost *)post forCell:(ReaderPostTableViewCell *)cell indexPath:(NSIndexPath *)indexPath {
+    NSURL *imageURL = post.featuredImageURL;
+    if (!imageURL) {
+        return;
+    }
+    CGSize imageSize = cell.cellImageView.bounds.size;
+    if (CGSizeEqualToSize(imageSize, CGSizeZero)) {
+        imageSize.width = self.tableView.bounds.size.width;
+        imageSize.height = round(imageSize.width * 0.66f);
+    }
+    UIImage *image = [_featuredImageSource imageForURL:imageURL withSize:imageSize];
+    if (image) {
+        [cell setFeaturedImage:image];
+    } else if (!_isScrollingFast) {
+        [_featuredImageSource fetchImageForURL:imageURL withSize:imageSize indexPath:indexPath isPrivate:post.isPrivate];
+    }
+}
 
 - (BOOL)hasMoreContent {
 	return _hasMoreContent;
@@ -586,6 +616,43 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 
 
 - (void)syncItemsWithUserInteraction:(BOOL)userInteraction success:(void (^)())success failure:(void (^)(NSError *))failure {
+    
+    // if needs auth.
+    if([WPCookie hasCookieForURL:[NSURL URLWithString:@"https://wordpress.com"] andUsername:[[WordPressComApi sharedApi] username]]) {
+       [self syncItemsWithSuccess:success failure:failure];
+        return;
+    }
+    
+    //
+    [[WordPressAppDelegate sharedWordPressApplicationDelegate] useDefaultUserAgent];
+    NSString *username = [[WordPressComApi sharedApi] username];
+    NSString *password = [[WordPressComApi sharedApi] password];
+    NSMutableURLRequest *mRequest = [[NSMutableURLRequest alloc] init];
+    NSString *requestBody = [NSString stringWithFormat:@"log=%@&pwd=%@&redirect_to=http://wordpress.com",
+                             [username stringByUrlEncoding],
+                             [password stringByUrlEncoding]];
+    
+    [mRequest setURL:[NSURL URLWithString:@"https://wordpress.com/wp-login.php"]];
+    [mRequest setHTTPBody:[requestBody dataUsingEncoding:NSUTF8StringEncoding]];
+    [mRequest setValue:[NSString stringWithFormat:@"%d", [requestBody length]] forHTTPHeaderField:@"Content-Length"];
+    [mRequest addValue:@"*/*" forHTTPHeaderField:@"Accept"];
+    [mRequest setHTTPMethod:@"POST"];
+    
+    
+    AFHTTPRequestOperation *authRequest = [[AFHTTPRequestOperation alloc] initWithRequest:mRequest];
+    [authRequest setCompletionBlockWithSuccess:^(AFHTTPRequestOperation *operation, id responseObject) {
+        [[WordPressAppDelegate sharedWordPressApplicationDelegate] useAppUserAgent];
+        [self syncItemsWithSuccess:success failure:failure];
+    } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+        [[WordPressAppDelegate sharedWordPressApplicationDelegate] useAppUserAgent];
+        [self syncItemsWithSuccess:success failure:failure];
+    }];
+    
+    [authRequest start];    
+}
+
+    
+- (void)syncItemsWithSuccess:(void (^)())success failure:(void (^)(NSError *))failure {
 	NSString *endpoint = [ReaderPost currentEndpoint];
 	NSNumber *numberToSync = [NSNumber numberWithInteger:ReaderPostsToSync];
 	NSDictionary *params = @{@"number":numberToSync, @"per_page":numberToSync};
@@ -603,6 +670,8 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 									 failure(error);
 								 }
 							 }];
+    [WPMobileStats trackEventForWPCom:StatsEventReaderHomePageRefresh];
+    [WPMobileStats pingWPComStatsEndpoint:@"home_page_refresh"];
 }
 
 
@@ -621,9 +690,9 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 	id before;
 	if([endpoint isEqualToString:@"freshly-pressed"]) {
 		// freshly-pressed wants an ISO string but the rest want a timestamp.
-		before = [DateUtils isoStringFromDate:post.dateCreated];
+		before = [DateUtils isoStringFromDate:post.date_created_gmt];
 	} else {
-		before = [NSNumber numberWithInteger:[post.dateCreated timeIntervalSince1970]];
+		before = [NSNumber numberWithInteger:[post.date_created_gmt timeIntervalSince1970]];
 	}
 
 	NSDictionary *params = @{@"before":before, @"number":numberToSync, @"per_page":numberToSync};
@@ -642,6 +711,10 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 									 failure(error);
 								 }
 							 }];
+    
+    [WPMobileStats trackEventForWPCom:StatsEventReaderInfiniteScroll properties:[self categoryPropertyForStats]];
+    [WPMobileStats logQuantcastEvent:@"newdash.infinite_scroll"];
+    [WPMobileStats logQuantcastEvent:@"mobile.infinite_scroll"];
 }
 
 
@@ -651,18 +724,21 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 
 
 - (void)onSyncSuccess:(AFHTTPRequestOperation *)operation response:(id)responseObject {
+	BOOL wasLoadingMore = _loadingMore;
 	_loadingMore = NO;
 	
 	NSDictionary *resp = (NSDictionary *)responseObject;
 	NSArray *postsArr = [resp arrayForKey:@"posts"];
 	
 	if (!postsArr) {
-		_hasMoreContent = NO;
+		if(wasLoadingMore) {
+			_hasMoreContent = NO;
+		}
 		return;
 	}
 	
 	// if # of results is less than # requested then no more content.
-	if ([postsArr count] < ReaderPostsToSync) {
+	if ([postsArr count] < ReaderPostsToSync && wasLoadingMore) {
 		_hasMoreContent = NO;
 	}
 	
@@ -705,12 +781,19 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 	
 	ReaderPostDetailViewController *controller = [[ReaderPostDetailViewController alloc] initWithPost:post];
 	[self.panelNavigationController pushViewController:controller fromViewController:self animated:YES];
+    
+    [WPMobileStats trackEventForWPCom:StatsEventReaderOpenedArticleDetails];
+    [WPMobileStats pingWPComStatsEndpoint:@"details_page"];
 }
 
 
-- (void)tableView:(UITableView *)tableView willDisplayCell:(UITableViewCell *)cell forRowAtIndexPath:(NSIndexPath *)indexPath {
-	[super tableView:tableView willDisplayCell:cell forRowAtIndexPath:indexPath];
-	
+- (void)tableView:(UITableView *)tableView willDisplayCell:(UITableViewCell *)aCell forRowAtIndexPath:(NSIndexPath *)indexPath {
+	[super tableView:tableView willDisplayCell:aCell forRowAtIndexPath:indexPath];
+
+	ReaderPostTableViewCell *cell = (ReaderPostTableViewCell *)aCell;
+	ReaderPost *post = (ReaderPost *)[self.resultsController objectAtIndexPath:indexPath];
+    [self setImageForPost:post forCell:cell indexPath:indexPath];
+
     if (indexPath.row <= _rowsSeen) {
         return;
     }
@@ -772,10 +855,39 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 			[self simulatePullToRefresh];
 		}
     }
+
+    if ([self isCurrentCategoryFreshlyPressed]) {
+        [WPMobileStats trackEventForWPCom:StatsEventReaderSelectedFreshlyPressedTopic];
+        [WPMobileStats pingWPComStatsEndpoint:@"freshly"];
+        [WPMobileStats logQuantcastEvent:@"newdash.fresh"];
+        [WPMobileStats logQuantcastEvent:@"mobile.fresh"];
+    } else {
+        [WPMobileStats trackEventForWPCom:StatsEventReaderSelectedCategory properties:[self categoryPropertyForStats]];
+    }
 }
 
 
 #pragma mark - Utility
+
+- (BOOL)isCurrentCategoryFreshlyPressed
+{
+    return [[self currentCategory] isEqualToString:@"freshly-pressed"];
+}
+
+- (NSString *)currentCategory
+{
+    NSDictionary *categoryDetails = [[NSUserDefaults standardUserDefaults] objectForKey:ReaderCurrentTopicKey];
+    NSString *category = [categoryDetails stringForKey:@"endpoint"];
+    if (category == nil)
+        return @"reader/following";
+    else
+        return category;
+}
+
+- (NSDictionary *)categoryPropertyForStats
+{
+    return @{@"category": [self currentCategory]};
+}
 
 - (void)fetchBlogsAndPrimaryBlog {
 	
@@ -804,33 +916,45 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 				
 				[[NSUserDefaults standardUserDefaults] setObject:usersBlogs forKey:@"wpcom_users_blogs"];
 				
-                __block NSNumber *preferredBlogId;
-                if ([usersBlogs count] > 1) {
-					[[WordPressComApi sharedApi] getPath:@"me"
-											  parameters:nil
-												 success:^(AFHTTPRequestOperation *operation, id responseObject) {
-													 NSDictionary *dict = (NSDictionary *)responseObject;
-													 NSNumber *primaryBlog = [dict objectForKey:@"primary_blog"];
-													 [usersBlogs enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
-														 if ([primaryBlog isEqualToNumber:[obj numberForKey:@"blogid"]]) {
-                                                             preferredBlogId = [obj numberForKey:@"blogid"];
-															 *stop = YES;
-														 }
-													 }];
-												 } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
-													 // TODO: Handle Failure. Retry maybe?
-												 }];
-					
-					
-				}
-
-                if (!preferredBlogId) {
-                    NSDictionary *dict = [usersBlogs objectAtIndex:0];
-                    preferredBlogId = [dict numberForKey:@"blogid"];
-                }
+                [[WordPressComApi sharedApi] getPath:@"me"
+                                          parameters:nil
+                                             success:^(AFHTTPRequestOperation *operation, id responseObject) {
+                                                 if ([usersBlogs count] < 1)
+                                                     return;
+                                                 
+                                                 NSDictionary *dict = (NSDictionary *)responseObject;
+                                                 NSString *userID = [dict stringForKey:@"ID"];
+                                                 if (userID != nil) {
+                                                     [WPMobileStats updateUserIDForStats:userID];
+                                                     [[NSUserDefaults standardUserDefaults] setObject:userID forKey:@"wpcom_user_id"];
+                                                     [NSUserDefaults resetStandardUserDefaults];
+                                                 }
+                                                 
+                                                 __block NSNumber *preferredBlogId;
+                                                 NSNumber *primaryBlog = [dict objectForKey:@"primary_blog"];
+                                                 [usersBlogs enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
+                                                     if ([primaryBlog isEqualToNumber:[obj numberForKey:@"blogid"]]) {
+                                                         preferredBlogId = [obj numberForKey:@"blogid"];
+                                                         *stop = YES;
+                                                     }
+                                                 }];
+                                                 
+                                                 if (!preferredBlogId) {
+                                                     NSDictionary *dict = [usersBlogs objectAtIndex:0];
+                                                     preferredBlogId = [dict numberForKey:@"blogid"];
+                                                 }
+                                                 
+                                                 [[NSUserDefaults standardUserDefaults] setObject:preferredBlogId forKey:@"wpcom_users_prefered_blog_id"];
+                                                 [NSUserDefaults resetStandardUserDefaults];
+                                                 
+                                             } failure:^(AFHTTPRequestOperation *operation, NSError *error) {
+                                                 // TODO: Handle Failure. Retry maybe?
+                                             }];
                 
-                [[NSUserDefaults standardUserDefaults] setObject:preferredBlogId forKey:@"wpcom_users_prefered_blog_id"];
-                [NSUserDefaults resetStandardUserDefaults];
+                if ([usersBlogs count] == 0) {
+                    return;
+                }
+
 			} failure:^(AFHTTPRequestOperation *operation, NSError *error) {
 				// Fail silently.
             }];
@@ -891,7 +1015,7 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 
 - (void)openFriendFinder:(id)sender {
     [self hideFriendFinderNudgeView:sender];
-    WPFriendFinderViewController *controller = [[WPFriendFinderViewController alloc] initWithNibName:@"WPReaderViewController" bundle:nil];
+    WPFriendFinderViewController *controller = [[WPFriendFinderViewController alloc] initWithNibName:@"WPWebViewController" bundle:nil];
 	
     UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:controller];
     if (IS_IPAD) {
@@ -909,7 +1033,7 @@ NSString *const WPReaderViewControllerDisplayedNativeFriendFinder = @"DisplayedN
 
 - (void)tableImageSource:(WPTableImageSource *)tableImageSource imageReady:(UIImage *)image forIndexPath:(NSIndexPath *)indexPath
 {
-    if (!self.tableView.isDecelerating && !self.tableView.isDragging) {
+    if (!_isScrollingFast) {
         ReaderPostTableViewCell *cell = (ReaderPostTableViewCell *)[self.tableView cellForRowAtIndexPath:indexPath];
         [cell setFeaturedImage:image];
     }

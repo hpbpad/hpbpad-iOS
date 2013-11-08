@@ -43,4 +43,8 @@
     return frame;
 }
 
+- (BOOL)isPage {
+    return YES;
+}
+
 @end

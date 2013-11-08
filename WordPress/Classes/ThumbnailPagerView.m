@@ -7,8 +7,8 @@
 
 #import "ThumbnailPagerView.h"
 
-CGFloat const outerOffset = 12.0f;
-CGFloat const innerOffset = 6.0f;
+CGFloat const hOffset = 9.0f; // 左右の余白
+CGFloat const vOffset = 6.0f; // 上下の余白
 
 @implementation ThumbnailPagerView {
     CGFloat _scrollObjectHeight;
@@ -73,32 +73,24 @@ CGFloat const innerOffset = 6.0f;
     _scrollObjectHeight = self.bounds.size.height;
     _scrollObjectWidth = self.bounds.size.width;
     
-    CGRect outerRect = CGRectMake(0,0,_scrollObjectWidth - (outerOffset*2), _scrollObjectHeight);
-    CGRect innerRect = CGRectMake(innerOffset, innerOffset, outerRect.size.width - innerOffset*2, outerRect.size.height - innerOffset*2);
-    
+    CGRect rectBase = CGRectMake(0,vOffset,_scrollObjectWidth - (hOffset*2), _scrollObjectHeight-(vOffset*2));
     NSArray *blogs = self.items;
-    CGFloat curXloc = outerOffset;
+    CGFloat curXloc = hOffset;
     // ブログごとにサムネイルのビューを作成し、サブビューとして追加
     for( Blog *blog in blogs ){
         // サムネイルのImageViewを調整。
-        //CGRect rect = CGRectMake(curXloc, 0, _scrollObjectWidth - outerOffset*2, _scrollObjectHeight);
-        CGRect rect = CGRectOffset(outerRect, curXloc, 0);
-        UIImageView *outer = [[UIImageView alloc] initWithFrame:rect];
-        outer.image = [UIImage imageNamed:@"dropshadow"];
-        outer.backgroundColor = [UIColor clearColor];
-        outer.userInteractionEnabled = YES;
-        
-        //UIImageView *imageView = [[UIImageView alloc] initWithFrame:rect];
-        UIImageView *imageView = [[UIImageView alloc] initWithFrame:innerRect];
+        CGRect rect = CGRectOffset(rectBase, curXloc, 0);
+        UIImageView *imageView = [[UIImageView alloc] initWithFrame:rect];
         imageView.contentMode = UIViewContentModeScaleAspectFit;
         imageView.backgroundColor = [UIColor clearColor];
-        //[imageView setBackgroundColor:[UIColor whiteColor]];
         UITapGestureRecognizer *recognizer = [[UITapGestureRecognizer alloc]initWithTarget:self action:@selector(onTapBlogThumbnail)];
         [imageView addGestureRecognizer:recognizer];
         imageView.userInteractionEnabled = YES;
+        imageView.layer.shadowColor = [[UIColor blackColor] CGColor];
+        imageView.layer.shadowOffset = CGSizeMake(0,0);
+        imageView.layer.shadowOpacity = 0.5f;
+        [self addSubview:imageView];
         
-        [outer addSubview:imageView];
-        [self addSubview:outer];
         // サムネイル読み込み＋表示
         UIImage *thumbnail = [blog getThumbnail];
         if(thumbnail){
@@ -128,12 +120,12 @@ CGFloat const innerOffset = 6.0f;
     [[self postTypePagerView] update];
     
     // 前へ/次へボタン
-    CGFloat x = _scrollObjectWidth - _nextButton.bounds.size.width - (outerOffset + innerOffset);
-    CGFloat y = (_scrollObjectHeight/2) - (_nextButton.bounds.size.height/2) + outerOffset;
+    CGFloat x = _scrollObjectWidth - _nextButton.bounds.size.width - hOffset;
+    CGFloat y = (_scrollObjectHeight/2) - (_nextButton.bounds.size.height/2) + vOffset;
+    _prevButton.frame = CGRectMake(hOffset, y, _nextButton.bounds.size.width, _nextButton.bounds.size.height);
     _nextButton.frame = CGRectMake(x, y, _nextButton.bounds.size.width, _nextButton.bounds.size.height);
-    _prevButton.frame = CGRectMake(outerOffset+innerOffset, y, _nextButton.bounds.size.width, _nextButton.bounds.size.height);
-    [self.superview addSubview:_nextButton];
     [self.superview addSubview:_prevButton];
+    [self.superview addSubview:_nextButton];
     
     // スクロール状態の更新
     [self update];
@@ -173,9 +165,8 @@ CGFloat const innerOffset = 6.0f;
     //[indicator setActivityIndicatorViewStyle:UIActivityIndicatorViewStyleGray];
     [indicator setActivityIndicatorViewStyle:UIActivityIndicatorViewStyleWhiteLarge];
     CGFloat size = 21;
-    CGFloat offset = outerOffset + innerOffset;
-    CGFloat x = ((_scrollObjectWidth - (offset * 2)) /2) - (size/2);
-    CGFloat y = ((_scrollObjectHeight - (innerOffset*2))/2) - (size/2);
+    CGFloat x = (_scrollObjectWidth/2) - (size/2) - hOffset;
+    CGFloat y = (_scrollObjectHeight/2) - (size/2) - vOffset;
     indicator.frame = CGRectMake(x,y,size,size);
     return indicator;
 }
@@ -259,9 +250,7 @@ CGFloat const innerOffset = 6.0f;
         getting = YES;
     }
     
-    //UIImageView* imageView = [[self subviews] objectAtIndex:position];
-    UIImageView* outer = [[self subviews] objectAtIndex:position];
-    UIImageView* imageView = [[outer subviews] objectAtIndex:0]; // 子がimageViewしかいない前提
+    UIImageView* imageView = [[self subviews] objectAtIndex:position];
     for (id subview in imageView.subviews) {
         // グルグル開始
         if(getting && [subview isKindOfClass:[UIActivityIndicatorView class]]){
@@ -283,9 +272,11 @@ CGFloat const innerOffset = 6.0f;
         [self reset];
         return;
     }
-    //UIImageView *imageView = [[self subviews] objectAtIndex:index];
-    UIImageView *outer = [[self subviews] objectAtIndex:index];
-    UIImageView *imageView = [[outer subviews] objectAtIndex:0];
+    if([[self subviews] count] < index+1){
+        [self reset];
+        return;
+    }
+    UIImageView *imageView = [[self subviews] objectAtIndex:index];
     imageView.image = blog.thumbnail;
     // 読み込み中表示があれば、止める。
     for (id subview in imageView.subviews) {
@@ -302,9 +293,7 @@ CGFloat const innerOffset = 6.0f;
     if(index == NSNotFound){
         index = 0;
     }
-    //UIImageView *imageView = [[self subviews] objectAtIndex:index];
-    UIImageView *outer = [[self subviews] objectAtIndex:index];
-    UIImageView *imageView = [[outer subviews] objectAtIndex:0];
+    UIImageView *imageView = [[self subviews] objectAtIndex:index];
     
     //imageView.image = blog.thumbnail;
     // 読み込み中表示があれば、止める。

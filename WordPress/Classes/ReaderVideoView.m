@@ -13,23 +13,11 @@
 
 @property (readwrite, nonatomic, assign) ReaderVideoContentType contentType;
 
-+ (AFHTTPClient *)sharedYoutubeClient;
-+ (AFHTTPClient *)sharedVimeoClient;
-+ (AFHTTPClient *)sharedDailyMotionClient;
-
-- (void)getYoutubeThumb:(NSString *)vidId
-				success:(void (^)(id videoView))success
-				failure:(void (^)(id videoView, NSError *error))failure;
-- (void)getVimeoThumb:(NSString *)vidId
-			  success:(void (^)(id videoView))success
-			  failure:(void (^)(id videoView, NSError *error))failure;
-- (void)getDailyMotionThumb:(NSString *)vidId
-					success:(void (^)(id videoView))success
-					failure:(void (^)(id videoView, NSError *error))failure;
-
 @end
 
-@implementation ReaderVideoView
+@implementation ReaderVideoView {
+    UIImageView *_playView;
+}
 
 + (AFHTTPClient *)sharedYoutubeClient {
 	static AFHTTPClient *_sharedClient = nil;
@@ -68,10 +56,27 @@
     if (self) {
 		[self.imageView setImage:[UIImage imageNamed:@"wp_vid_placeholder"]];
 		self.isShowingPlaceholder = YES;
+        _playView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"video_play"]];
+        _playView.contentMode = UIViewContentModeCenter;
+        [self addSubview:_playView];
     }
     return self;
 }
 
+- (void)layoutSubviews {
+    [super layoutSubviews];
+
+    _playView.center = CGPointMake(round(CGRectGetMidX(self.bounds)), round(CGRectGetMidY(self.bounds)));
+}
+
+- (void)setHighlighted:(BOOL)highlighted {
+    [super setHighlighted:highlighted];
+    if (highlighted) {
+        self.alpha = .8f;
+    } else {
+        self.alpha = 1.f;
+    }
+}
 
 #pragma mark - Instance Methods
 
@@ -89,6 +94,9 @@
 	
 	if (NSNotFound != [[self.contentURL absoluteString] rangeOfString:@"youtube.com/embed"].location) {
 		[self getYoutubeThumb:vidId success:success failure:failure];
+    } else if (NSNotFound != [[self.contentURL absoluteString] rangeOfString:@"videos.files.wordpress.com"].location ||
+               NSNotFound != [[self.contentURL absoluteString] rangeOfString:@"videos.videopress.com"].location) {
+        [self getVideoPressThumb:url success:success failure:failure];
 	} else if (NSNotFound != [[self.contentURL absoluteString] rangeOfString:@"vimeo.com/video"].location) {
 		[self getVimeoThumb:vidId success:success failure:failure];
 	} else if (NSNotFound != [[self.contentURL absoluteString] rangeOfString:@"dailymotion.com/embed/video"].location) {
@@ -127,6 +135,20 @@
 											   }
 										   }];
 
+}
+
+
+- (void)getVideoPressThumb:(NSURL *)url
+				success:(void (^)(id videoView))success
+				failure:(void (^)(id videoView, NSError *error))failure {
+	
+    NSString *path = [NSString stringWithFormat:@"http://i0.wp.com/%@%@", [url host], [[url path] stringByReplacingOccurrencesOfString:@".mp4" withString:@".original.jpg?w=640"]];
+
+    url = [NSURL URLWithString:path];
+    [self setImageWithURL:url
+            placeholderImage:[UIImage imageNamed:@"wp_vid_placeholder.png"]
+                     success:success
+                     failure:failure];
 }
 
 
